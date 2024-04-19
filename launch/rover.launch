@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+        <!-- Parameters file -->
+        <rosparam file="$(find rover_sentinel)/config/puzzlebot.yaml"/>
+
+        <!-- Nodes -->
+        <node name="navigation_obstacle_avoidance" pkg="rover_sentinel" type="navigation.py" output="screen"/>
+</launch>
