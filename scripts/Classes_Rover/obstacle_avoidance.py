@@ -17,7 +17,7 @@ class obstacleAvoidance:
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self.__v, self.__w = 0.0, 0.0
-        self.__vmax, self.__wmax = 0.5, 1.0
+        self.__vmax, self.__wmax = 0.2, 0.3
 
         # Publish messages
         self.__velocity = Twist()
@@ -29,7 +29,7 @@ class obstacleAvoidance:
         rospy.Subscriber("/scan", LaserScan, self.__scanCallback)
 
     # Stop function
-    def _stop(self) -> None:
+    def _stop(self):
         self.__v, self.__w = 0.0, 0.0
         self.publishVel()
 
@@ -38,46 +38,43 @@ class obstacleAvoidance:
         self.__avoid(msg.ranges)
         self.publishVel()
 
+    def __getDistances(self, data):
+        forwardDist = min(data[0:144] + data[1004:1147])
+        rightDist = min(data[800:950])
+        leftDist = min(data[250:350])
+        return [forwardDist, leftDist, rightDist]
+
     # Private function for turning right of left
-    def __rotate(self, dists, left, right):
+    def __rotate(self, left, right):
         if left > right:
             self.__count1 += 1
             self.__count2 = 0
-            # Turn is taken after 20 counts, to avoid jerking
-            if self.__count1 >= 20:
+            # Turn is taken after 40 counts, to avoid jerking
+            if self.__count1 >= 40:
                 self.__minLinear_maxAngular()
-                if all(dist > self.__safeDistance for dist in dists):
-                    self.__count1 = 0
-                    self.__maxLinear_minAngular()
-        elif left < right :
+        elif right > left:
             self.__count1 = 0
             self.__count2 += 1
-            # Turn is taken after 20 counts, to avoid jerking
-            if self.__count2 >= 20:
+            # Turn is taken after 40 counts, to avoid jerking
+            if self.__count2 >= 40:
                 self.__minLinear_maxAngular(sign = -1)
-                if all(dist > self.__safeDistance for dist in dists):
-                    self.__count2 = 0
-                    self.__maxLinear_minAngular()
 
     # Public function for avoiding obstacles by changing linear and angular velocities
     def __avoid(self, scanData):
         # Minimum distance from obstacles at each direction
-        forwardDist = min(scanData[0:144] + scanData[1004:1147])
-        rightDist = min(scanData[861:1004])
-        leftDist = min(scanData[144:287])
-        dists = [forwardDist, leftDist, rightDist]
+        dists = self.__getDistances(scanData)
+        forwardDist, leftDist, rightDist = dists
 
-        # Prioritize right rotation
-        if rightDist > self.__safeDistance:
-            self.__minLinear_maxAngular(sign = -1)
-        # Check if there are no obstacles at any direction
-        elif all(dist > self.__safeDistance for dist in dists) or forwardDist > self.__safeDistance:
+        # Check if there are no obstacles at the front
+        if forwardDist > self.__safeDistance:
+            self.__count1, self.__count2 = 0, 0
             self.__maxLinear_minAngular()
         # Check if there are obstacles in all directions
         elif all(dist < self.__safeDistance for dist in dists):
+            self.__count1, self.__count2 = 0, 0
             self.__minLinear_maxAngular()
         else:
-            self.__rotate(dists, leftDist, rightDist)
+            self.__rotate(leftDist, rightDist)
 
     # Private function for setting linear at max and angular at min
     def __maxLinear_minAngular(self) :
@@ -94,3 +91,8 @@ class obstacleAvoidance:
         self.__velocity.linear.x = self.__v
         self.__velocity.angular.z = self.__w
         self.__vel_pub.publish(self.__velocity)
+
+# 0:300 -> 0, 100
+# 300:600 -> 100, 200
+# 600:900 -> 200, 290
+# 900:1147 -> 290, 360

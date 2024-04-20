@@ -3,6 +3,8 @@
         <!-- Parameters file -->
         <rosparam file="$(find rover_sentinel)/config/puzzlebot.yaml"/>
 
+        <include file="$(find rplidar_ros)/launch/rplidar_a1.launch" />
+
         <!-- Nodes -->
         <node name="navigation_obstacle_avoidance" pkg="rover_sentinel" type="navigation.py" output="screen"/>
 </launch>

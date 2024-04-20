@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import rospy
-from Classes import obstacleAvoidance
+from Classes_Rover import obstacleAvoidance
 
 if __name__ == "__main__":
     # Initialise and Setup node
