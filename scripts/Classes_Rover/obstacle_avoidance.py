@@ -46,17 +46,17 @@ class obstacleAvoidance:
 
     # Private function for turning right of left
     def __rotate(self, left, right):
-        if left > right:
-            self.__count1 += 1
-            self.__count2 = 0
-            # Turn is taken after 40 counts, to avoid jerking
-            if self.__count1 >= 40:
-                self.__minLinear_maxAngular()
-        elif right > left:
+        # if left > right:
+        #     self.__count1 += 1
+        #     self.__count2 = 0
+        #     # Turn is taken after 2 counts, to avoid jerking
+        #     if self.__count1 >= 2:
+        #         self.__minLinear_maxAngular()
+        # elif right > left:
             self.__count1 = 0
             self.__count2 += 1
-            # Turn is taken after 40 counts, to avoid jerking
-            if self.__count2 >= 40:
+            # Turn is taken after 2 counts, to avoid jerking
+            if self.__count2 >= 2:
                 self.__minLinear_maxAngular(sign = -1)
 
     # Public function for avoiding obstacles by changing linear and angular velocities
@@ -72,7 +72,7 @@ class obstacleAvoidance:
         # Check if there are obstacles in all directions
         elif all(dist < self.__safeDistance for dist in dists):
             self.__count1, self.__count2 = 0, 0
-            self.__minLinear_maxAngular()
+            self.__minLinear_maxAngular(sign=-1)
         else:
             self.__rotate(leftDist, rightDist)
 
