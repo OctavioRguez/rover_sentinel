@@ -17,7 +17,7 @@ class obstacleAvoidance:
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self.__v, self.__w = 0.0, 0.0
-        self.__vmax, self.__wmax = 0.2, 0.3
+        self.__vmax, self.__wmax = 0.25, 0.3
 
         # Publish messages
         self.__velocity = Twist()
@@ -40,19 +40,19 @@ class obstacleAvoidance:
 
     def __getDistances(self, data):
         forwardDist = min(data[0:144] + data[1004:1147])
-        rightDist = min(data[800:950])
-        leftDist = min(data[250:350])
+        rightDist = min(data[800:925])
+        leftDist = min(data[275:350])
         return [forwardDist, leftDist, rightDist]
 
     # Private function for turning right of left
     def __rotate(self, left, right):
-        # if left > right:
-        #     self.__count1 += 1
-        #     self.__count2 = 0
-        #     # Turn is taken after 2 counts, to avoid jerking
-        #     if self.__count1 >= 2:
-        #         self.__minLinear_maxAngular()
-        # elif right > left:
+        if left > right:
+            self.__count1 += 1
+            self.__count2 = 0
+            # Turn is taken after 2 counts, to avoid jerking
+            if self.__count1 >= 2:
+                self.__minLinear_maxAngular()
+        elif right > left:
             self.__count1 = 0
             self.__count2 += 1
             # Turn is taken after 2 counts, to avoid jerking
