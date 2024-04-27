@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 from Classes_Rover import obstacleAvoidance
 
@@ -7,7 +7,7 @@ if __name__ == "__main__":
     rospy.init_node('Puzzlebot_Navigation_obstacleAvoidance')
 
     # Configure the Node
-    rate = rospy.Rate(rospy.get_param('/node_rate', default = 10))
+    rate = rospy.Rate(rospy.get_param('/node_rate/value', default = 10))
 
     # Classes
     navigation_handler = obstacleAvoidance()

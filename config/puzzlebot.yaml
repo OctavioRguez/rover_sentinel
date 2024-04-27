@@ -1,3 +1,7 @@
-node_rate: 100
+node_rate: 
+  name: Ros_rate
+  value: 100
 puzzlebot:
-  safe_distance: 0.8
+  safe_distance: 
+    name: Distance_around_puzzlebot
+    value: 0.2
