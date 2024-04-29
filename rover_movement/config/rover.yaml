@@ -1,0 +1,13 @@
+node_rate: 
+  name: Ros_rate
+  value: 100
+rover:
+  wheelbase:
+    name: Distance between the 2 wheels
+    value: 19.0
+  wheel_radius:
+    name: Radius of the wheel
+    value: 5.0
+  hinge:
+    name: Distance from the middle of the 2 wheels
+    value: 1.0
