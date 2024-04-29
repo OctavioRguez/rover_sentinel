@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # Import python libraries
 import rospy
@@ -25,23 +25,19 @@ class modelPredict:
         self.__compressedImg = CompressedImage()
         self.__compressedImg.format = "jpeg"
 
-        # Publisher for cmd_vel
+        # Publisher for classificated image
         self.__detection_pub = rospy.Publisher("/prediction/compressed", CompressedImage, queue_size = 1)
         
-        # Subscribe to wheel encoder topics
+        # Subscribe to compressed image topic
         rospy.Subscriber("/image/compressed", CompressedImage, self.__imageCallback)
+        rospy.wait_for_message("/image/compressed", CompressedImage, timeout = 30)
 
-    # Stop function
-    def _stop(self):
-        rospy.loginfo("Shutting down the Classification Node")
-
-    # Callback for the image topic
-    def __imageCallback(self, msg):
+    def __imageCallback(self, msg:CompressedImage):
         # Start the detection process
         self.__img = msg.data
 
     # Define if opencv runs with CUDA or CPU (False = CPU, True = CUDA)
-    def __buildModel(self, is_cuda):
+    def __buildModel(self, is_cuda:bool) -> None:
         if is_cuda:
             print("Attempting to use CUDA")
             self.__session = ort.InferenceSession(self.__model, providers = ['CUDAExecutionProvider'])
@@ -52,21 +48,18 @@ class modelPredict:
         shape = self.__session.get_inputs()[0].shape
         self.__inputWidth, self.__inputHeight = shape[2:4]
 
-    # Format image to be used by the model
-    def __formatImg(self, img):
+    def __formatImg(self, img:cv.Mat) -> np.ndarray:
         image = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         image = np.array(cv.resize(image, (self.__inputWidth, self.__inputHeight))) / 255.0 # Resize (input shape) and normalize (0-1)
         image = np.transpose(image, (2, 0, 1)) # Transpose to have: (channels, width, height)
         return np.expand_dims(image, axis=0).astype(np.float32) # Add batch dimension to create tensor (b, c, w, h)
 
-    # Detect objects and get the raw output from the model
-    def __detect(self, img):
+    def __detect(self, img:cv.Mat) -> np.ndarray:
         inputs = {self.__session.get_inputs()[0].name: img} # Prepare the input for the model
         preds = self.__session.run(None, inputs) # Perform inference
         return np.squeeze(preds[0]) # Remove batch dimension
 
-    # Wrap the detection processing
-    def __wrapDetection(self, modelOutput, object):
+    def __wrapDetection(self, modelOutput:np.ndarray, object:str) -> list:
         # Initialize lists
         class_ids, boxes, scores = [], [], []
 
@@ -107,8 +100,7 @@ class modelPredict:
             final_scores.append(scores[i])
         return final_class_ids, final_boxes, final_scores
 
-    # Start the detection process
-    def __startDetection(self, imgData, object):
+    def __startDetection(self, imgData:list, object:str) -> cv.Mat:
         # Decode the image
         img = cv.imdecode(np.frombuffer(imgData, np.uint8), cv.IMREAD_COLOR)
         # Get the image shapes
@@ -133,9 +125,11 @@ class modelPredict:
             cv.putText(img, f"{object}: {scores[index]:.3f}", (x, y + 10), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 1, cv.LINE_AA)
         return cv.imencode('.jpeg', img)[1].tobytes()
 
-    def start(self):
-        if self.__img:
-            img = self.__startDetection(self.__img, "Seven")
-            self.__compressedImg.header.stamp = rospy.Time.now()
-            self.__compressedImg.data = img
-            self.__detection_pub.publish(self.__compressedImg)
+    def start(self) -> None:
+        img = self.__startDetection(self.__img, "Seven")
+        self.__compressedImg.header.stamp = rospy.Time.now()
+        self.__compressedImg.data = img
+        self.__detection_pub.publish(self.__compressedImg)
+
+    def stop(self) -> None:
+        rospy.loginfo("Stoping the Classificator Node")

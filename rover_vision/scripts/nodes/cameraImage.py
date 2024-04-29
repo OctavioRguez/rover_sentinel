@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+
+# Import python libraries
 import rospy
-from Classes_Rover import Camera
+
+# Import Classes
+from classes_vision import Camera
 
 if __name__=='__main__':
     # Initialise and Setup node
@@ -13,12 +17,12 @@ if __name__=='__main__':
     cam = Camera()
 
     # Shutdown hook
-    rospy.on_shutdown(cam._stop)
+    rospy.on_shutdown(cam.stop)
 
     print("The Camera Node is Running")
     try:    
         while not rospy.is_shutdown():
-            cam.getImage()
+            cam.get_image()
             rate.sleep()
 
     except rospy.ROSInterruptException:

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+
+# Import python libraries
 import rospy
-from Classes_Rover import modelPredict
+
+# Import Classes
+from classes_vision import modelPredict
 
 if __name__=='__main__':
     # Initialise and Setup node
@@ -13,7 +17,7 @@ if __name__=='__main__':
     model = modelPredict()
 
     # Shutdown hook
-    rospy.on_shutdown(model._stop)
+    rospy.on_shutdown(model.stop)
 
     print("The Camera Node is Running")
     try:    

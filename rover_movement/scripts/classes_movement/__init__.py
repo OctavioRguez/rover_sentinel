@@ -1,4 +1,4 @@
 #!/usr/bin/env python3
-from .avoidance import obstacleAvoidance
+from .navigation import Rover_Navigation
 
-__all__ = ['obstacleAvoidance']
+__all__ = ['Rover_Navigation']
