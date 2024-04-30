@@ -22,7 +22,10 @@ if __name__ == "__main__":
     print("The Rover Localization is Running")
     try:    
         while not rospy.is_shutdown():
-            rover.update_odometry()
+            if not rover._last_time:
+                rover._last_time = rospy.Time.now().to_sec()
+            else:
+                rover.update_odometry()
             rate.sleep()
 
     except rospy.ROSInterruptException:

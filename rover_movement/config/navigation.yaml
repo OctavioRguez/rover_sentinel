@@ -4,4 +4,4 @@ node_rate:
 rover:
   safe_distance: 
     name: Distance_around_rover
-    value: 0.4
+    value: 0.25

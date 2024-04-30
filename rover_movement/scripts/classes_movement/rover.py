@@ -7,9 +7,9 @@ import numpy as np
 class Rover:
     def __init__(self):
         # Initial rover parameters
-        self._l = rospy.get_param("/rover/wheelbase/value", default = 19.0)
-        self._r = rospy.get_param("/rover/wheel_radius/value", default = 5.0)
-        self._h = rospy.get_param("/rover/hinge/value", default = 1.0)
+        self._l = rospy.get_param("/rover/wheelbase/value", default = 0.2)
+        self._r = rospy.get_param("/rover/wheel_radius/value", default = 0.05)
+        self._h = rospy.get_param("/rover/hinge/value", default = 0.01)
         self._last_time = 0.0
 
         # Rover states
@@ -18,8 +18,8 @@ class Rover:
 
     # Get the time difference for dt
     def _get_dt(self):
-        current_time = rospy.Time.now()
-        dt = (current_time - self._last_time).to_sec()
+        current_time = rospy.Time.now().to_sec()
+        dt = (current_time - self._last_time)
         self._last_time = current_time
         return dt
 

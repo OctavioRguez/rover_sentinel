@@ -3,6 +3,7 @@
 # Import python libraries
 import rospy
 import numpy as np
+from collections import deque
 from tf.transformations import quaternion_from_euler
 
 # Import ROS messages
@@ -11,15 +12,19 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion
 
 # Import Classes
-from .Puzzlebot import Puzzlebot
+from .rover import Rover
 
-class Localization(Puzzlebot):
+class Localization(Rover):
     def __init__(self):
-        # Initialize the puzzlebot attributes
-        Puzzlebot.__init__(self)
+        # Initialize the rover attributes
+        Rover.__init__(self)
 
         # Initial wheel velocities
         self.__wr, self.__wl = 0.0, 0.0
+
+        # Median filter
+        self.__queue_wr = deque(maxlen = 30)
+        self.__queue_wl = deque(maxlen = 30)
 
         # Declare the publish messagess
         self.__odom = Odometry()
@@ -35,11 +40,13 @@ class Localization(Puzzlebot):
 
     # Callback for the right wheel velocity
     def __wr_callback(self, msg):
-        self.__wr = msg.data
+        self.__queue_wr.append(msg.data)
+        self.__wr = np.mean(self.__queue_wr)
 
     # Callback for the left wheel velocity
     def __wl_callback(self, msg):
-        self.__wl = msg.data
+        self.__queue_wl.append(msg.data)
+        self.__wl = np.mean(self.__queue_wl)
 
     # Solve the odometry equations
     def update_odometry(self):
@@ -55,8 +62,10 @@ class Localization(Puzzlebot):
         self._states["x"] += self._v * np.cos(self._states["theta"]) * dt
         self._states["y"] += self._v * np.sin(self._states["theta"]) * dt
 
-    # Publish odometry message
-    def publish_odometry(self):
+        # Publish odometry message
+        self.__publish_odometry()
+
+    def __publish_odometry(self):
         # Set the header
         self.__odom.header.stamp = rospy.Time.now()
 
@@ -74,4 +83,5 @@ class Localization(Puzzlebot):
         # Publish the message
         self.__odom_pub.publish(self.__odom)
 
-        
+    def stop(self):
+        rospy.loginfo("Stopping localization")
