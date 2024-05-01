@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <launch>
         <!-- Parameters file -->
-        <rosparam file="$(find rover_movement)/config/navigation.yaml"/>
         <rosparam file="$(find rover_movement)/config/rover.yaml"/>
 
         <!-- Activate lidar -->

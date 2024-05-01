@@ -48,13 +48,13 @@ class modelPredict:
         shape = self.__session.get_inputs()[0].shape
         self.__inputWidth, self.__inputHeight = shape[2:4]
 
-    def __formatImg(self, img:cv.Mat) -> np.ndarray:
+    def __formatImg(self, img) -> np.ndarray:
         image = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         image = np.array(cv.resize(image, (self.__inputWidth, self.__inputHeight))) / 255.0 # Resize (input shape) and normalize (0-1)
         image = np.transpose(image, (2, 0, 1)) # Transpose to have: (channels, width, height)
         return np.expand_dims(image, axis=0).astype(np.float32) # Add batch dimension to create tensor (b, c, w, h)
 
-    def __detect(self, img:cv.Mat) -> np.ndarray:
+    def __detect(self, img) -> np.ndarray:
         inputs = {self.__session.get_inputs()[0].name: img} # Prepare the input for the model
         preds = self.__session.run(None, inputs) # Perform inference
         return np.squeeze(preds[0]) # Remove batch dimension
@@ -100,7 +100,7 @@ class modelPredict:
             final_scores.append(scores[i])
         return final_class_ids, final_boxes, final_scores
 
-    def __startDetection(self, imgData:list, object:str) -> cv.Mat:
+    def __startDetection(self, imgData:list, object:str):
         # Decode the image
         img = cv.imdecode(np.frombuffer(imgData, np.uint8), cv.IMREAD_COLOR)
         # Get the image shapes

@@ -4,11 +4,14 @@ node_rate:
 rover:
   wheelbase:
     name: Distance between the 2 wheels
-    value: 0.19
+    value: 0.17
   wheel_radius:
     name: Radius of the wheel
     value: 0.05
   hinge:
     name: Distance from the middle of the 2 wheels
-    value: 0.1
+    value: 0.01
+  safe_distance: 
+    name: Distance_around_rover
+    value: 0.25
     
