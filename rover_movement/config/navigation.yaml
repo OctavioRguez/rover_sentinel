@@ -1,7 +1,0 @@
-node_rate: 
-  name: Ros_rate
-  value: 100
-rover:
-  safe_distance: 
-    name: Distance_around_rover
-    value: 0.25
