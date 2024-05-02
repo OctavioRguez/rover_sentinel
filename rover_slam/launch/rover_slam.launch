@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Arguments -->
+    <arg name="base_frame" default="base_link"/>
+    <arg name="map_frame" default="map"/>
+
+    <!-- Launch Hector SLAM -->
+    <include file="$(find rover_slam)/launch/hector_slam.launch"/>
+
+</launch>
