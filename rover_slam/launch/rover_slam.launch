@@ -4,6 +4,9 @@
     <arg name="base_frame" default="base_link"/>
     <arg name="map_frame" default="map"/>
 
+    <!-- Activate lidar -->
+    <include file="$(find rplidar_ros)/launch/rplidar_a1.launch" />
+
     <!-- Launch Hector SLAM -->
     <include file="$(find rover_slam)/launch/hector_slam.launch"/>
 
