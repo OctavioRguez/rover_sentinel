@@ -73,7 +73,7 @@ class Rover_Navigation(Rover):
             self.__turning = False
         
         # Rotate to the direction with the higher distance
-        self.__set_vel(0.0, -self.__w) if self.__turn_right else self.__set_vel(0.0, self.__w)
+        self.__set_vel(0.0, -self._w) if self.__turn_right else self.__set_vel(0.0, self._w)
 
     def __set_vel(self, v:float, w:float) -> None:
         self.__velocity.linear.x = v

@@ -33,4 +33,4 @@ class Rover:
     
     # Stop function for ROS
     def stop(self) -> None:
-        rospy.loginfo(f"Stopping {self.__name__}")
+        rospy.loginfo(f"Stopping {self.__class__.__name__}")

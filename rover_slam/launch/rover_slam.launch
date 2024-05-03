@@ -1,13 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Arguments -->
-    <arg name="base_frame" default="base_link"/>
-    <arg name="map_frame" default="map"/>
-
     <!-- Activate lidar -->
-    <include file="$(find rplidar_ros)/launch/rplidar_a1.launch" />
+    <include file="$(find rplidar_ros)/launch/rplidar_a1.launch"/>
+
+    <!-- Odometry Launch -->
+    <include file="$(find rover_movement)/launch/rover_odometry.launch"></include>
 
     <!-- Launch Hector SLAM -->
-    <include file="$(find rover_slam)/launch/hector_slam.launch"/>
+    <include file="$(find rover_slam)/launch/gmapping_slam.launch"/>
 
 </launch>

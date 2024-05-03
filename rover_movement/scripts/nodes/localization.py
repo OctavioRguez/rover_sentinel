@@ -4,7 +4,7 @@
 import rospy
 
 # Import Classes
-from classes_movement import Localization
+from classes_movement import Localization, Transform
 
 if __name__ == "__main__":
     # Initialise and Setup node
@@ -15,6 +15,7 @@ if __name__ == "__main__":
 
     # Classes
     rover = Localization()
+    tf = Transform()
 
     # Shutdown hook
     rospy.on_shutdown(rover.stop)
@@ -26,6 +27,7 @@ if __name__ == "__main__":
                 rover._last_time = rospy.Time.now().to_sec()
             else:
                 rover.update_odometry()
+                tf.update_transform()
             rate.sleep()
 
     except rospy.ROSInterruptException:

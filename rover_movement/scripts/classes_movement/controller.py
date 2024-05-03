@@ -21,10 +21,16 @@ class Controller(Rover):
         # Initialize variables
         self.__vmax, self.__wmax = 0.1, 0.3
         self.__kp = np.eye(2)
-        self.__point = {"x":0.0, "y":1.0}
+        self.__kd = 0.6
+        self.__kr = 2.5
+        self.__point = {"x":1.0, "y":0.0}
 
         # Lidar data info
         self.__forward, self.__left, self.__right = [], [], []
+
+        # Flags for rotating
+        self.__turn_right = False
+        self.__turning = True
 
         # Declare the publish messagess
         self.__vel = Twist()
@@ -97,23 +103,29 @@ class Controller(Rover):
 
     def __avoid(self) -> None:
         # Minimum distance from obstacles at each direction
-        # min_forward, min_left, min_right = [min(self.__forward), min(self.__left), min(self.__right)]
-        # if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
-        #     self._v, self._w = 0.0, -self.__wmax
-        # elif min_forward < self._safe_distance:
-        #     self._v /= 2
-        #     self._w -= (self._safe_distance - min_forward)
-        # elif min_left < self._safe_distance:
-        #     self._v /= 2
-        #     self._w -= (self._safe_distance - min_left)
-        # elif min_right < self._safe_distance:
-        #     self._v /= 2
-        #     self._w += (self._safe_distance - min_right)
-
+        min_forward, min_left, min_right = [min(self.__forward), min(self.__left), min(self.__right)]
+        if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
+            self._v, self._w = 0.0, self.__wmax
+        elif min_left < self._safe_distance:
+            self._w -= self.__kr*(self._safe_distance - min_left)
+        elif min_right < self._safe_distance:
+            self._w += self.__kr*(self._safe_distance - min_right)
+        elif min_forward < self._safe_distance:
+            self._v -= self.__kd*(self._safe_distance - min_forward)
+            self._w += self.__obstacle_forward(min_forward, min_left, min_right)
+            
         # Publish the control input
         self.__vel.linear.x = self._v
         self.__vel.angular.z = self._w
         self.__vel_pub.publish(self.__vel)
+
+    def __obstacle_forward(self, forward:float, left:float, right:float) -> float:
+        if self.__turning:
+            self.__turn_right = True if right >= left else False
+            self.__turning = False
+        
+        # Rotate to the direction with the higher distance
+        return -self.__kr*(self._safe_distance - forward) if self.__turn_right else self.__kr*(self._safe_distance - forward)
     
     def stop(self) -> None:
         # Stop the rover
