@@ -9,6 +9,6 @@
     </node>
 
     <!-- Transform -->
-    <node pkg="tf" type="static_transform_publisher" name="map_nav_broadcaster" args="0 0 0 0 0 0 
+    <node pkg="tf" type="static_transform_publisher" name="baselink_laser_tf" args="0 0 0 0 0 0 
     base_link laser 100"/>
 </launch>

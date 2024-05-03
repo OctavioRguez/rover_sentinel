@@ -38,7 +38,7 @@ class Controller(Rover):
         # Publisher for cmd_vel
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         
-        # Subscribe to the odometry and set_point topics
+        # Subscribe to the odometry and scan topics
         rospy.Subscriber("/odom", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.wait_for_message("/odom", Odometry, timeout = 30)
