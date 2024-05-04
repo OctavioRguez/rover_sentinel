@@ -19,8 +19,8 @@ if __name__ == "__main__":
     # Shutdown hook
     rospy.on_shutdown(sections.stop)
 
-    print("The Rover Controller is Running")
-    try:    
+    print("The Map split is Running")
+    try:
         sections.split(2, 2)
     except rospy.ROSInterruptException:
         pass

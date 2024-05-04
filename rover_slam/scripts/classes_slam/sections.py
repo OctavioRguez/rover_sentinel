@@ -12,8 +12,6 @@ class Map_Sections:
     def __init__(self) -> None:
         # Initialize variables
         self.__map = None
-        self.__height = 0
-        self.__width = 0
         self.__borders = []
         
         # Subscribe to the odometry and scan topics
@@ -23,44 +21,47 @@ class Map_Sections:
     # Callback function for the SLAM map
     def __map_callback(self, data:OccupancyGrid) -> None:
         # Convert the map data to a numpy array
-        self.__height = data.info.height
-        self.__width = data.info.width
-        self.__map = np.array(data.data, dtype=np.uint8).reshape((self.__height, self.__width))
+        self.__map = np.array(data.data, dtype = np.uint8).reshape((data.info.height, data.info.width))
 
-    def map_to_image(self) -> None:
-        # Create a new image in grayscale mode
-        img = Image.new('L', (self.__width, self.__height))
-        img.putdata(self.__map .flatten())
-
-        # Save the image
-        img.save("/home/puzzlebot/map_image.png")
+    def __crop_img(self) -> tuple:
+        # Create a new image and crop the unknown areas
+        img = Image.fromarray(self.__map).point(lambda p: 255 - p)
+        points = img.getbbox()
+        img_crop = img.crop(points).point(lambda p: 255 - p)
+        # Save the image and return points from original map
+        img_crop.save("/home/puzzlebot/map.png")
+        return points
 
     def split(self, rows:int, columns:int) -> None:
+        # Get crop image
+        points = self.__crop_img()
+        img = Image.open("/home/puzzlebot/map.png")
+
         # Get sections size
-        section_width = self.__width // rows
-        section_height = self.__height // columns
+        width, height = img.size
+        section_width = width // columns
+        section_height = height // rows
 
         # Get borders from each section
-        for i in range(columns):
-            for j in range(rows):
-                self.__borders.append({"x" : [j * section_width, (j + 1) * section_width],
-                                        "y" : [i * section_height, (i + 1) * section_height]})
-
-        # Create a new image to show the section
-        img = Image.new('RGB', (self.__width, self.__height), color = (255, 255, 255))
-        img.putdata(self.__map.flatten())
+        for i in range(rows):
+            for j in range(columns):
+                self.__borders.append({"x" : [(j * section_width + points[0] - self.__map.shape[1]/2)/40,
+                                              ((j + 1) * section_width + points[0] - self.__map.shape[1]/2)/40],
+                                        "y" : [(i * section_height + points[1]  - self.__map.shape[0]/2)/40,
+                                               ((i + 1) * section_height + points[1]- self.__map.shape[0]/2)/40]})
+        rospy.loginfo(self.__borders)
 
         # Draw the lines to separate the sections
         draw = ImageDraw.Draw(img)
-        for i in range(1, rows):
-            x = i * section_width
-            draw.line((x, 0, x, self.__height), fill=(0, 0, 255))
         for i in range(1, columns):
+            x = i * section_width
+            draw.line((x, 0, x, height))
+        for i in range(1, rows):
             y = i * section_height
-            draw.line((0, y, self.__width, y), fill=(0, 0, 255))
+            draw.line((0, y, width, y))
 
         # Save the image
-        img.save("/home/puzzlebot/map_image_sections.png")
+        img.save("/home/puzzlebot/map_sections.png")
 
     def stop(self) -> None:
         # Stop the node
