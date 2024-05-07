@@ -7,12 +7,17 @@ from PIL import Image, ImageDraw
 
 # Import ROS messages
 from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import Point32
+from rover_slam.msg import Quadrants, Borders
 
 class Map_Sections:
     def __init__(self) -> None:
         # Initialize variables
         self.__map = None
         self.__borders = []
+
+        # Publisher for borders
+        self.__borders_pub = rospy.Publisher("/odom", Quadrants, queue_size = 10)
         
         # Subscribe to the odometry and scan topics
         rospy.Subscriber("/map", OccupancyGrid, self.__map_callback)
@@ -45,11 +50,12 @@ class Map_Sections:
         # Get borders from each section
         for i in range(rows):
             for j in range(columns):
-                self.__borders.append({"x" : [(j * section_width + points[0] - self.__map.shape[1]/2)/40,
-                                              ((j + 1) * section_width + points[0] - self.__map.shape[1]/2)/40],
-                                        "y" : [(i * section_height + points[1]  - self.__map.shape[0]/2)/40,
-                                               ((i + 1) * section_height + points[1]- self.__map.shape[0]/2)/40]})
-        rospy.loginfo(self.__borders)
+                upper = Point32(x = (j * section_width + points[0] - self.__map.shape[1]/2)/40,
+                                y = (i * section_height + points[1]  - self.__map.shape[0]/2)/40)
+                lower = Point32(x = ((j + 1) * section_width + points[0] - self.__map.shape[1]/2)/40, 
+                                y = ((i + 1) * section_height + points[1]- self.__map.shape[0]/2)/40)
+                self.__borders.append(Borders(upper = upper, lower = lower))
+        self.__borders_pub.publish(self.__borders)
 
         # Draw the lines to separate the sections
         draw = ImageDraw.Draw(img)
