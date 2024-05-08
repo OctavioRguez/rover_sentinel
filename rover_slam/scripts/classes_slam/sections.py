@@ -17,7 +17,7 @@ class Map_Sections:
         self.__borders = []
 
         # Publisher for borders
-        self.__borders_pub = rospy.Publisher("/odom", Quadrants, queue_size = 10)
+        self.__borders_pub = rospy.Publisher("/borders", Quadrants, queue_size = 10)
         
         # Subscribe to the odometry and scan topics
         rospy.Subscriber("/map", OccupancyGrid, self.__map_callback)
