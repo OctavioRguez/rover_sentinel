@@ -1,7 +1,7 @@
 classification:
   model:
     name: Model_ONNX
-    path: "/home/puzzlebot/ws/src/rover_sentinel/rover_vision/model/bestV5-25e.onnx"
+    path: "/home/puzzlebot/ws/src/rover_sentinel/rover_vision/model/best.onnx"
   classes:
     name: Classes_list
     list: ["Fanta", "Pepsi", "Seven"]
