@@ -4,6 +4,7 @@
 import rospy
 import cv2 as cv
 import numpy as np
+import torch
 import onnxruntime as ort
 
 # Import ROS messages
@@ -12,7 +13,7 @@ from sensor_msgs.msg import CompressedImage
 class modelPredict:
     def __init__(self):
         # Initialize variables
-        self.__model = rospy.get_param("/classification/model/path", default = "model.onnx")
+        self.__model = rospy.get_param("/classification/model/path", default = "best.onnx")
         self.__class_list = rospy.get_param("/classification/classes/list", default = [])
         self.__colors = np.random.uniform(0, 255, size=(len(self.__class_list), 3))
         self.__conf = rospy.get_param("/classification/confidence/value", default = 0.7)
@@ -39,10 +40,10 @@ class modelPredict:
     # Define if opencv runs with CUDA or CPU (False = CPU, True = CUDA)
     def __buildModel(self, is_cuda:bool) -> None:
         if is_cuda:
-            print("Attempting to use CUDA")
+            rospy.loginfo("Attempting to use CUDA")
             self.__session = ort.InferenceSession(self.__model, providers = ['CUDAExecutionProvider'])
         else:
-            print("Running on CPU")
+            rospy.loginfo("Running on CPU")
             self.__session = ort.InferenceSession(self.__model, providers = ['CPUExecutionProvider'])
         # Get the input image shape for the model (width, height)
         shape = self.__session.get_inputs()[0].shape
@@ -122,11 +123,11 @@ class modelPredict:
             # Draw the label background
             cv.rectangle(img, (x, y - 15), (x + w, y + 15), color, -1)
             # Draw the label and confidence of the object
-            cv.putText(img, f"{object}: {scores[index]:.3f}", (x, y + 10), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 1, cv.LINE_AA)
+            cv.putText(img, f"{object}", (x, y + 10), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 1, cv.LINE_AA)
         return cv.imencode('.jpeg', img)[1].tobytes()
 
     def start(self) -> None:
-        img = self.__startDetection(self.__img, "Seven")
+        img = self.__startDetection(self.__img, "Persona")
         self.__compressedImg.header.stamp = rospy.Time.now()
         self.__compressedImg.data = img
         self.__detection_pub.publish(self.__compressedImg)

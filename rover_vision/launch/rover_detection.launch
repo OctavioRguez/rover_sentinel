@@ -5,5 +5,5 @@
 
         <!-- Nodes -->
         <node name="rover_pov" pkg="rover_vision" type="cameraImage.py"/>
-        <node name="rover_prediction" pkg="rover_vision" type="detection.py"/>
+        <node name="rover_prediction" pkg="rover_vision" type="detection.py" output="screen"/>
 </launch>

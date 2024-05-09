@@ -19,7 +19,7 @@ if __name__=='__main__':
     # Shutdown hook
     rospy.on_shutdown(model.stop)
 
-    print("The Camera Node is Running")
+    print("The Prediction Node is Running")
     try:    
         while not rospy.is_shutdown():
             model.start()
