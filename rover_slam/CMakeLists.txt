@@ -75,6 +75,7 @@ add_message_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  rover_slam
   geometry_msgs
 )
 
@@ -109,8 +110,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES rover_slam
-#  CATKIN_DEPENDS geometry_msgs nav_msgs rospy sensor_msgs std_msgs tf2_ros tf_conversions
+#  LIBRARIES rover_slam_msgs
+ CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -166,6 +167,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/nodes/split_map.py
+  scripts/nodes/planning.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
