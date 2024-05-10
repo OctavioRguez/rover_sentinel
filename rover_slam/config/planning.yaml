@@ -1,0 +1,16 @@
+node_rate: 
+  name: Ros_rate
+  value: 100
+planning:
+  iterations:
+    name: Iterations for RRT
+    value: 2500
+  max_dist:
+    name: Maximum distance between points in RRT
+    value: 10
+  safe_dist:
+    name: Safe distance from obstacles
+    value: 6
+  interpolation:
+    name: Number of points to interpolate for each connection in RRT
+    value: 30

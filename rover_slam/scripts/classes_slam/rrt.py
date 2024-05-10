@@ -8,26 +8,31 @@ import matplotlib.pyplot as plt
 # Import ROS messages
 from nav_msgs.msg import OccupancyGrid
 
+# Node is the class for each point generated for the RRT
 class Node:
-    def __init__(self, x, y):
+    def __init__(self, x:int, y:int, parent=None) -> None:
         self.x = x
         self.y = y
-        self.parent = None
+        self.parent = parent
+        self.dist = float("inf")
+    
+    def __lt__(self, node) -> bool:
+        return self.dist < node.dist
 
 class RRT:
-    def __init__(self):
+    def __init__(self) -> None:
         # Initialize variables
         self.__map = None
         self.__width, self.__height = 0, 0
 
         # Points parameters
-        self.__iterations = 2000
-        self.__max_dist = 10
-        self.__safe_dist = 6
+        self.__iterations = rospy.get_param("/planning/iterations/value", default = 1000)
+        self.__max_dist = rospy.get_param("/planning/max_dist/value", default = 5)
+        self.__safe_dist = rospy.get_param("/planning/safe_dist/value", default = 5)
+        self.__interpolation = rospy.get_param("/planning/interpolation/value", default = 30)
 
         # Obstacles
         self.__obstacles = []
-        self.__interpolation = 20
         
         # Subscribe to the odometry and scan topics
         rospy.Subscriber("/map", OccupancyGrid, self.__map_callback)
@@ -35,37 +40,45 @@ class RRT:
 
     # Callback function for the SLAM map
     def __map_callback(self, data:OccupancyGrid) -> None:
-        # Convert the map data to a numpy array
         self.__width = data.info.width
         self.__height = data.info.height
         self.__map = np.array(data.data, dtype = np.uint8).reshape((data.info.height, data.info.width))
 
-    def __get_obstacles(self):
+    # Get each obstacle point in the map
+    def __get_obstacles(self) -> None:
         for y in range(len(self.__map)):
             for x in range(len(self.__map[y])):
                 if self.__map[y][x] == 100:
                     self.__obstacles.append((x, y))
 
-    def __generate_point(self):
-        x = np.random.randint(0, self.__height)
-        y = np.random.randint(0, self.__width)
+    # Generate a random and valid point in the map
+    def __generate_point(self) -> tuple:
+        while True:
+            x = np.random.randint(0, self.__height)
+            y = np.random.randint(0, self.__width)
+            if self.__validate_point((x, y)):
+                break
         return x, y
 
-    def __validate_point(self, point):
+    # Get distance between two points
+    def __dist(self, point1:tuple, point2:tuple) -> float:
+        return np.linalg.norm(np.array(point1) - np.array(point2))
+
+    # Validate point to be in open space and far from obstacles
+    def __validate_point(self, point:tuple) -> bool:
         if self.__map[point[1]][point[0]] != 0:
             return False
-
-        for obstacle in self.__obstacles:
-            x, y = obstacle
-            if np.sqrt((point[0] - x)**2 + (point[1] - y)**2) < self.__safe_dist:
-                return False
+        
+        if any(self.__dist(point, obs) < self.__safe_dist for obs in self.__obstacles):
+            return False
         return True
 
-    def __nearest_node(self, nodes, point):
+    # Get the nearest existing node for the current point
+    def __nearest_node(self, nodes:list, point:tuple) -> Node:
         min_dist = float('inf')
         nearest = None
         for node in nodes:
-            dist = np.sqrt((node.x - point[0])**2 + (node.y - point[1])**2)
+            dist = self.__dist(point, (node.x, node.y))
             if dist < min_dist:
                 interpolation = np.linspace(point, (node.x, node.y), self.__interpolation)
                 if any(self.__map[int(p[1])][int(p[0])] != 0 for p in interpolation):
@@ -74,48 +87,49 @@ class RRT:
                 nearest = node
         return nearest
 
-    def __approach_point(self, nearest, point):
-        dist = np.sqrt((point[0] - nearest.x)**2 + (point[1] - nearest.y)**2)
-        if dist <= self.__max_dist:
+    # Get the current point to a maximum distance from the nearest node
+    def __approach_point(self, nearest:Node, point:tuple) -> tuple:
+        if self.__dist(point, (nearest.x, nearest.y)) <= self.__max_dist:
             return point
 
         theta = np.arctan2(point[1] - nearest.y, point[0] - nearest.x)
         x = nearest.x + int(self.__max_dist * np.cos(theta))
         y = nearest.y + int(self.__max_dist * np.sin(theta))
-        # x = x if x < self.__height else self.__height-1
-        # y = y if y < self.__width else self.__width-1
         new_point = (x, y)
 
         if self.__validate_point(new_point):
             return new_point
         return None
 
-    def rrt(self):
-        start = Node(180, 68)
-        nodes = [start]
+    # Perform the RRT algorithm
+    def rrt(self) -> list:
+        start = self.__generate_point()
+        nodes = [Node(start[0], start[1])]
         self.__get_obstacles()
 
         for _ in range(self.__iterations):
-            while True:
-                point = self.__generate_point()
-                if self.__validate_point(point):
-                    break
+            point = self.__generate_point()
             nearest = self.__nearest_node(nodes, point)
             if nearest is not None:
                 point = self.__approach_point(nearest, point)
                 if point is not None:
-                    node = Node(point[0], point[1])
-                    node.parent = nearest
+                    node = Node(x=point[0], y=point[1], parent=nearest)
                     nodes.append(node)
         return nodes
 
-    def plot(self, nodes):
-        plt.figure(figsize=(8, 8))
-        plt.imshow(self.__map, cmap='Greys', origin='lower')
+    # Plot the map, RRT points and path
+    def plot(self, nodes:list, path:list) -> None:
+        plt.figure(figsize = (8, 8))
+        plt.imshow(self.__map, cmap = 'Greys', origin = 'lower')
         for node in nodes:
             if node.parent:
                 plt.plot([node.x, node.parent.x], [node.y, node.parent.y], color='blue')
+        if path is not None:
+            path_x = [node.x for node in path]
+            path_y = [node.y for node in path]
+            plt.plot(path_x, path_y, color = 'red', linewidth = 2)
         plt.show()
 
-    def stop(self):
-        rospy.loginfo("Shutting down the rrt")
+    # Stop the algorithm
+    def stop(self) -> None:
+        rospy.loginfo("Shutting down the RRT")
