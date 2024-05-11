@@ -41,19 +41,19 @@ class Localization():
 
     def update_odom(self):
         # Update the linear position (x, y)
-        self.__odom.pose.pose.position.x += self.__transform.transform.translation.x
-        self.__odom.pose.pose.position.y += self.__transform.transform.translation.y
+        self.__odom.pose.pose.position.x = self.__transform.transform.translation.x
+        self.__odom.pose.pose.position.y = self.__transform.transform.translation.y
 
         # Update the angular position (z)
-        q = self.__odom.pose.pose.orientation
-        angle = euler_from_quaternion([q.x, q.y, q.z, q.w])[2] # Odom angle
+        # q = self.__odom.pose.pose.orientation
+        # angle = euler_from_quaternion([q.x, q.y, q.z, q.w])[2] # Odom angle
 
-        q = self.__transform.transform.rotation
-        angle += euler_from_quaternion([q.x, q.y, q.z, q.w])[2] # Add transform angle
+        self.__odom.pose.pose.orientation = self.__transform.transform.rotation
+        # angle = euler_from_quaternion([q.x, q.y, q.z, q.w])[2] # Add transform angle
 
         # Wrap angle to [-pi, pi] and transform to Quaternion
-        angle = (angle + np.pi) % (2 * np.pi) - np.pi
-        self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, angle))
+        # angle = (angle + np.pi) % (2 * np.pi) - np.pi
+        # self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, angle))
 
         # Publish the odometry message
         self.__odom.header.stamp = rospy.Time.now()

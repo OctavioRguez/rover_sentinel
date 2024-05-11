@@ -3,14 +3,14 @@ node_rate:
   value: 100
 planning:
   iterations:
-    name: Iterations for RRT
-    value: 2500
+    name: Iterations for PRM
+    value: 500
   max_dist:
-    name: Maximum distance between points in RRT
-    value: 10
+    name: Maximum distance between points in PRM
+    value: 30
   safe_dist:
     name: Safe distance from obstacles
-    value: 6
+    value: 5
   interpolation:
-    name: Number of points to interpolate for each connection in RRT
+    name: Number of points to interpolate for each connection in PRM
     value: 30

@@ -4,7 +4,7 @@
         <rosparam file="$(find rover_movement)/config/rover.yaml"/>
 
         <!-- Activate lidar -->
-        <include file="$(find rplidar_ros)/launch/rplidar_a1.launch" />
+        <!-- <include file="$(find rplidar_ros)/launch/rplidar_a1.launch" /> -->
 
         <!-- Nodes -->
         <node name="navigation_obstacle_avoidance" pkg="rover_movement" type="navigation.py" output="screen"/>

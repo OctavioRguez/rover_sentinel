@@ -168,6 +168,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/nodes/split_map.py
   scripts/nodes/planning.py
+  scripts/nodes/slam_position.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

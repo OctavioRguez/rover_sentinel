@@ -13,5 +13,5 @@ rover:
     value: 0.01
   safe_distance: 
     name: Distance_around_rover
-    value: 0.25
+    value: 0.2
     

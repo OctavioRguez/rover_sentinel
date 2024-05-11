@@ -20,7 +20,7 @@ class Rover_Navigation(Rover):
         Rover.__init__(self)
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
-        self._v, self._w = 0.25, 0.3
+        self._v, self._w = 0.15, 0.2
 
         # Flags for rotating
         self.__turn_right = False
@@ -66,7 +66,7 @@ class Rover_Navigation(Rover):
 
     def move(self) -> None:
         # Minimum distance from obstacles and borders at each direction
-        self.__compute_lasers()
+        # self.__compute_lasers()
         min_forward = min(min(self.__forward), self.__front_laser)
         min_left = min(min(self.__left), self.__left_laser)
         min_right = min(min(self.__right), self.__right_laser)
