@@ -13,7 +13,7 @@ if __name__ == "__main__":
     sections = Map_Sections()
     rospy.on_shutdown(sections.stop)
 
-    print("The Map split is Running")
+    print("The Map splitter is Running")
     try:
         sections.split(2, 2)
     except rospy.ROSInterruptException:
