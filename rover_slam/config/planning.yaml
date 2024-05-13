@@ -4,10 +4,10 @@ node_rate:
 planning:
   iterations:
     name: Iterations for PRM
-    value: 500
+    value: 1000
   max_dist:
     name: Maximum distance between points in PRM
-    value: 30
+    value: 8
   safe_dist:
     name: Safe distance from obstacles
     value: 5
