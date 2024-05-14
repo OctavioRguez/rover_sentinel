@@ -12,12 +12,12 @@ class PRM:
         self.__map = np.asarray(Image.open("/home/puzzlebot/map.png"))
         self.__width, self.__height = self.__map.shape
 
-        self.__iterations = rospy.get_param("/planning/iterations/value", default = 1000)
-        self.__max_dist = rospy.get_param("/planning/max_dist/value", default = 5)
-        self.__safe_dist = rospy.get_param("/planning/safe_dist/value", default = 5)
-        self.__interpolation = rospy.get_param("/planning/interpolation/value", default = 30)
+        self.__safe_dist = rospy.get_param("/planning/safe_dist/value", default = 4)
+        self.__interpolation = rospy.get_param("/planning/interpolation/value", default = 20)
 
         self.__graph = nx.Graph()
+        self.__iterations = (self.__width + self.__height) // 2
+        self.__max_dist = (self.__width + self.__height) // 8
         self.__obstacles = []
 
     def __dist(self, p1:tuple, p2:tuple) -> float:

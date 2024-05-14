@@ -8,7 +8,7 @@ from tf.transformations import euler_from_quaternion
 # ROS messages
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
+from nav_msgs.msg import Odometry, Path
 
 # Parent Class
 from .rover import Rover
@@ -33,6 +33,7 @@ class Controller(Rover):
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         rospy.Subscriber("/odom", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
+        rospy.Subscriber("/path", Path, self.__path_callback)
         rospy.wait_for_message("/odom", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
@@ -46,6 +47,9 @@ class Controller(Rover):
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
         self.__left = msg.ranges[275:350]
         self.__right = msg.ranges[800:925]
+    
+    def __path_callback(self):
+        pass
 
     def control(self) -> None:
         # dx = self.__point["x"] - self._states["x"]

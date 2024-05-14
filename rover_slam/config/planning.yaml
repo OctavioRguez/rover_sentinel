@@ -2,12 +2,6 @@ node_rate:
   name: Ros_rate
   value: 100
 planning:
-  iterations:
-    name: Iterations for PRM
-    value: 200
-  max_dist:
-    name: Maximum distance between points in PRM
-    value: 50
   safe_dist:
     name: Safe distance from obstacles
     value: 5
