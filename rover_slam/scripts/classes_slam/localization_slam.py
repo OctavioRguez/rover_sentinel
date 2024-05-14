@@ -2,48 +2,32 @@
 
 # Python libraries
 import rospy
-import numpy as np
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from tf2_ros import Buffer
 
 # ROS messages
-from geometry_msgs.msg import TransformStamped, Pose
+from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
-from tf2_msgs.msg import TFMessage
 
-class Localization():
+class Localization_SLAM():
     def __init__(self):
-        self.__transform = TransformStamped()
-        self.__pose = Pose()
+        self.__odom = Odometry()
+        self.__map_pose = PoseStamped()
+        self.__map_pose.header.frame_id = "map"
 
-        self.__pose_pub = rospy.Publisher("/pose/slam", Pose, queue_size = 10)
-        rospy.Subscriber("/tf", TFMessage, self.__transform_callback)
-        rospy.Subscriber("/odom", Odometry, self.__odom_callback)
-        rospy.wait_for_message("/tf", TFMessage, timeout = 30)
-        rospy.wait_for_message("/odom", TFMessage, timeout = 30)
-
-    def __transform_callback(self, msg:TFMessage):
-        for transform in msg.transforms:
-            if transform.child_frame_id == "odom" and transform.header.frame_id == "map":
-                self.__transform = transform
-
-    def __odom_callback(self, msg:Odometry):
-        # self.__odom.pose.pose.position = msg.pose.pose.position
-        # self.__odom.pose.pose.orientation = msg.pose.pose.orientation
-        pass
+        self.__buffer = Buffer()
+        self.__odom_pub = rospy.Publisher("/odom/slam", Odometry, queue_size = 10)
 
     def update_pose(self):
-        self.__pose.position = self.__transform.transform.translation
-        self.__pose.orientation = self.__transform.transform.rotation
+        tf = self.__buffer.lookup_transform("map", "odom", rospy.Time(0))
 
-        # q = self.__odom.pose.pose.orientation
-        # angle = euler_from_quaternion([q.x, q.y, q.z, q.w])[2] # Odom angle
-        # q = self.__transform.transform.rotation
-        # angle = euler_from_quaternion([q.x, q.y, q.z, q.w])[2] # Add transform angle
+        self.__map_pose.header.stamp = rospy.Time.now()
+        self.__map_pose.pose.position = tf.transform.translation
+        self.__map_pose.pose.orientation = tf.transform.rotation
+        slam_pose = self.__buffer.transform(self.__map_pose, "base_link")
 
-        # Wrap angle to [-pi, pi] and transform to Quaternion
-        # angle = (angle + np.pi) % (2 * np.pi) - np.pi
-        # self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, angle))
-        self.__pose_pub.publish(self.__pose)
+        self.__odom.header.stamp = rospy.Time.now()
+        self.__odom.pose.pose = slam_pose.pose
+        self.__odom_pub.publish(self.__odom)
 
     def stop(self):
         rospy.loginfo("Shutting down the Slam Position Publisher")

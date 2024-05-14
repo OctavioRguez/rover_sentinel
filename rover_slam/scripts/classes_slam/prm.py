@@ -9,7 +9,7 @@ from PIL import Image
 
 class PRM:
     def __init__(self) -> None:
-        self.__map = np.asarray(Image.open("/home/octavio/catkin_ws/src/rover_sentinel/map.png"))
+        self.__map = np.asarray(Image.open("/home/puzzlebot/map.png"))
         self.__width, self.__height = self.__map.shape
 
         self.__iterations = rospy.get_param("/planning/iterations/value", default = 1000)

@@ -23,7 +23,7 @@ class modelPredict:
         self.__compressedImg = CompressedImage()
         self.__compressedImg.format = "jpeg"
 
-        self.__detection_pub = rospy.Publisher("/prediction/compressed", CompressedImage, queue_size = 1)
+        self.__detection_pub = rospy.Publisher("/prediction/compressed", CompressedImage, queue_size = 10)
         rospy.Subscriber("/image/compressed", CompressedImage, self.__image_callback)
         rospy.wait_for_message("/image/compressed", CompressedImage, timeout = 30)
 
@@ -61,7 +61,7 @@ class modelPredict:
         for r in range(rows):
             row = modelOutput[r]
             
-            if row[4] > self.__conf:
+            if (row[4] > self.__conf):
                 classes_scores = row[5:]
                 class_id = np.argmax(classes_scores)
                 max_score = classes_scores[class_id]
@@ -100,8 +100,6 @@ class modelPredict:
             x, y, w, h = tuple(map(int, boxes[index]))
             color = self.__colors[class_ids[index]]
             cv.rectangle(img, (x, y), (x + w, y + h), color, 2) # Bounding box
-            cv.rectangle(img, (x, y - 15), (x + w, y + 15), color, -1) # Label background
-            cv.putText(img, f"{object}", (x, y + 10), cv.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 1, cv.LINE_AA) # Label
         return cv.imencode('.jpeg', img)[1].tobytes()
 
     def predict(self) -> None:

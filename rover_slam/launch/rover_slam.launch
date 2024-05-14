@@ -10,5 +10,6 @@
     <include file="$(find rover_slam)/launch/gmapping_slam.launch"/>
 
     <!-- Nodes -->
+    <rosparam file="$(find rover_slam)/config/planning.yaml"/>
     <node name="slam_pose" pkg="rover_slam" type="slam_position.py" output="screen"/>
 </launch>

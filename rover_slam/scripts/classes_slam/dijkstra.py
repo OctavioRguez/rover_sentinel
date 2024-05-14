@@ -13,7 +13,7 @@ from nav_msgs.msg import Odometry, Path
 class Dijkstra_Path:
     def __init__(self, graph:nx.Graph) -> None:
         self.__graph = graph
-        # self.__start = (0, 0)
+        self.__start = (0, 0)
 
         self.__path_pub = rospy.Publisher("/path", Path, queue_size = 10)
         rospy.Subscriber("/odom_slam", Odometry, self.__odom_callback)
@@ -25,6 +25,9 @@ class Dijkstra_Path:
     def __get_path_callback(self, msg):
         if msg.data:
             self.calculate_dijkstra()
+        
+    def __dist(self, p1:tuple, p2:tuple) -> float:
+        return np.linalg.norm(np.array(p1) - np.array(p2))
 
     def calculate_dijkstra(self):
         # Approximate for a start node
@@ -38,6 +41,6 @@ class Dijkstra_Path:
             except nx.NetworkXNoPath:
                 print("No path found, retrying...")
 
-        rospy.loginfo(start_node, goal_node)
+        print(start_node, goal_node)
         self.__path_pub.publish(Path(poses=(PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path)))
         return path

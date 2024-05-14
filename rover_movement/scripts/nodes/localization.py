@@ -18,7 +18,7 @@ if __name__ == "__main__":
     try:    
         while not rospy.is_shutdown():
             if not rover._last_time:
-                rover._last_time = rospy.Time.now()
+                rover._last_time = rospy.Time.now().to_sec()
             else:
                 rover.update_odometry()
                 tf.update_transform()
