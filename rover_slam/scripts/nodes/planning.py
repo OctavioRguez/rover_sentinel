@@ -9,7 +9,7 @@ from classes_slam import Dijkstra_Path
 
 if __name__ == "__main__":
     rospy.init_node('PRM_Dijkstra_Planning')
-    rate = rospy.Rate(rospy.get_param("/node_rate/value", default = 10))
+    rate = rospy.Rate(rospy.get_param("/node_rate/value", default = 30))
 
     prm = PRM()
     rospy.on_shutdown(prm.stop)

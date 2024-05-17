@@ -8,7 +8,7 @@ from classes_slam import Map_Sections
 
 if __name__ == "__main__":
     rospy.init_node('Split_Map')
-    rate = rospy.Rate(rospy.get_param('/node_rate/value', default = 10))
+    rate = rospy.Rate(rospy.get_param('/node_rate/value', default = 30))
 
     sections = Map_Sections()
     rospy.on_shutdown(sections.stop)

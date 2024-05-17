@@ -8,7 +8,7 @@ from classes_vision import modelPredict
 
 if __name__=='__main__':
     rospy.init_node("Classification_Node")
-    rate = rospy.Rate(rospy.get_param('/node_rate/value', default = 10))
+    rate = rospy.Rate(rospy.get_param('/node_rate/value', default = 30))
     
     model = modelPredict()
     rospy.on_shutdown(model.stop)
