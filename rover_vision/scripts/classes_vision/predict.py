@@ -4,8 +4,8 @@
 import rospy
 import cv2 as cv
 import numpy as np
-# import torch
 import onnxruntime as ort
+import torch
 
 # ROS messages
 from sensor_msgs.msg import CompressedImage
@@ -44,7 +44,7 @@ class modelPredict:
         image = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         image = np.array(cv.resize(image, (self.__inputWidth, self.__inputHeight))) / 255.0 # Resize and normalize (0-1)
         image = np.transpose(image, (2, 0, 1)) # Transpose to have: (channels, width, height)
-        return np.expand_dims(image, axis=0).astype(np.float32) # Add batch dimension to create tensor (b, c, w, h)
+        return np.expand_dims(image, axis=0).astype(np.float16) # Add batch dimension to create tensor (b, c, w, h)
 
     def __detect(self, img) -> np.ndarray:
         inputs = {self.__session.get_inputs()[0].name: img} # Prepare the input for the model
