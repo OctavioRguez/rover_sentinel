@@ -19,7 +19,7 @@ class Rover_Navigation(Rover):
         Rover.__init__(self)
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
-        self._v, self._w = 0.15, 0.2
+        self._v, self._w = 0.2, 0.2
         self.__turn_right = False
         self.__turning = True
 
@@ -35,7 +35,7 @@ class Rover_Navigation(Rover):
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
-        rospy.Subscriber("/odom", Odometry, self.__odom_callback)
+        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/curr_border", Borders, self.__borders_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
@@ -55,7 +55,7 @@ class Rover_Navigation(Rover):
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
 
     def move(self) -> None:
-        # self.__compute_lasers()
+        self.__compute_lasers()
         min_forward = min(min(self.__forward), self.__front_laser)
         min_left = min(min(self.__left), self.__left_laser)
         min_right = min(min(self.__right), self.__right_laser)
@@ -65,27 +65,27 @@ class Rover_Navigation(Rover):
             self.__turning = True
             self.__set_vel(self._v, 0.0)
         # Obstacles in all directions
-        elif all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
-            self.__set_vel(0.0, -self._w)
-        # Obstacles in both left and right sides
-        elif abs(min_left - min_right) < self._safe_distance:
-            self.__set_vel(0.0, self._w)
-        # Obstacles at the left
-        elif min_left < self._safe_distance:
-            self.__set_vel(0.0, -self._w)
-        # Obstacles at the right
-        elif min_right < self._safe_distance:
-            self.__set_vel(0.0, self._w)
-        # Obstacles at the front
-        else:
-            self.__obstacle_forward(min_left, min_right)
-
+        elif self.__turning:
+            if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
+                self.__set_vel(0.0, -self._w)
+            # Obstacles in both left and right sides
+            elif abs(min_left - min_right) < self._safe_distance:
+                self.__set_vel(0.0, self._w)
+            # Obstacles at the left
+            elif min_left < self._safe_distance:
+                self.__set_vel(0.0, -self._w)
+            # Obstacles at the right
+            elif min_right < self._safe_distance:
+                self.__set_vel(0.0, self._w)
+            # Obstacles at the front
+            else:
+                self.__obstacle_forward(min_left, min_right)
+            self.__turning = False
         self.__vel_pub.publish(self.__velocity)
 
     def __obstacle_forward(self, left:float, right:float) -> None:
         if self.__turning:
             self.__turn_right = True if right >= left else False
-            self.__turning = False
         # Rotate to the direction with the higher distance
         self.__set_vel(0.0, -self._w) if self.__turn_right else self.__set_vel(0.0, self._w)
 
@@ -102,22 +102,22 @@ class Rover_Navigation(Rover):
 
     def __get_laser_point(self, theta:float) -> np.array:
         point = np.array([0.0, 0.0])
-        theta = self._wrap_to_Pi(theta)
+        theta = theta+2*np.pi if theta < 0 else theta # Set theta from 0 to 2*pi
         # Right border
-        if -np.pi/4 <= theta <= np.pi/4:
+        if theta <= np.pi/4:
             point[0] = self.__x_max
             point[1] = self._states["y"] + np.tan(theta)*(self.__x_max - self._states["x"])
         # Upper border
-        elif np.pi/4 <= theta <= 3*np.pi/4:
-            point[0] = self._states["x"] + np.tan(theta)*(self._states["y"] - self.__y_max)
+        elif theta <= 3*np.pi/4:
+            point[0] = self._states["x"] + np.tan(np.pi/2 - theta)*(self._states["y"] - self.__y_max)
             point[1] = self.__y_max
         # Left border
-        elif 3*np.pi/4 <= theta <= -3*np.pi/4:
+        elif theta <= 5*np.pi/8:
             point[0] = self.__x_min
-            point[1] = self._states["y"] + np.tan(theta)*(self.__x_min - self._states["x"])
+            point[1] = self._states["y"] + np.tan(np.pi - theta)*(self.__x_min - self._states["x"])
         # Lower border
         else:
-            point[0] = self._states["x"] + np.tan(theta)*(self._states["y"] - self.__y_min)
+            point[0] = self._states["x"] + np.tan(3*np.pi/2 - theta)*(self._states["y"] - self.__y_min)
             point[1] = self.__y_min
         return point
 

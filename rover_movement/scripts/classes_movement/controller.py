@@ -31,10 +31,10 @@ class Controller(Rover):
         self.__vel = Twist()
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
-        rospy.Subscriber("/odom", Odometry, self.__odom_callback)
+        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/path", Path, self.__path_callback)
-        rospy.wait_for_message("/odom", Odometry, timeout = 30)
+        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __odom_callback(self, msg:Odometry) -> None:
