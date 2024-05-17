@@ -2,14 +2,15 @@
 
 # Python libraries
 import rospy
+import cv2 as cv
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 
 class PRM:
     def __init__(self) -> None:
-        self.__map = np.asarray(Image.open("/home/puzzlebot/map.png"))
+        self.__map = cv.imread("/home/puzzlebot/map.png", cv.IMREAD_GRAYSCALE)
+        self.__map_original = self.__map.copy()
         self.__width, self.__height = self.__map.shape
 
         self.__safe_dist = rospy.get_param("/planning/safe_dist/value", default = 4)
@@ -17,18 +18,16 @@ class PRM:
 
         self.__graph = nx.Graph()
         self.__iterations = (self.__width + self.__height) // 2
-        self.__max_dist = (self.__width + self.__height) // 8
-        self.__obstacles = []
+        self.__max_dist = (self.__width + self.__height) // 24
 
     def __dist(self, p1:tuple, p2:tuple) -> float:
         return np.linalg.norm(np.array(p1) - np.array(p2))
 
-    def __get_obstacles(self) -> None:
-        for y in range(len(self.__map)):
-            for x in range(len(self.__map[y])):
-                # Save each obstacle point (represented by 100) in the map
-                if self.__map[y][x] == 100:
-                    self.__obstacles.append((x, y))
+    def __widen_obstacles(self) -> None:
+        kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
+        self.__map = cv.morphologyEx(self.__map, cv.MORPH_OPEN, kernel, iterations = 1)
+        kernel = cv.getStructuringElement(cv.MORPH_RECT, (self.__safe_dist, self.__safe_dist))
+        self.__map = cv.morphologyEx(self.__map, cv.MORPH_DILATE, kernel, iterations = 2)
 
     def __generate_point(self) -> tuple:
         while True:
@@ -40,7 +39,7 @@ class PRM:
 
     def __validate_point(self, point:tuple) -> bool:
         # Validate point to be in open space (represented by 0) and far from obstacles
-        if any(self.__dist(point, obs) < self.__safe_dist for obs in self.__obstacles) or self.__map[point[1]][point[0]] != 0:
+        if self.__map[point[1]][point[0]] != 0:
             return False
         return True
 
@@ -81,7 +80,7 @@ class PRM:
                     self.__graph.add_edge(point, neighbor, weight = dist)
 
     def calculate_prm(self) -> None:
-        self.__get_obstacles()
+        self.__widen_obstacles()
         # Add an initial point to the graph
         point = self.__generate_point()
         self.__graph.add_node(point)
@@ -98,7 +97,7 @@ class PRM:
     # Plot the map, RRT points and Dijkstra path
     def plot(self, path:list) -> None:
         plt.figure(figsize = (8, 8))
-        plt.imshow(self.__map, cmap = 'Greys', origin = 'lower')
+        plt.imshow(self.__map_original, cmap = 'Greys', origin = 'lower')
         for edge in self.__graph.edges():
             plt.plot([edge[0][0], edge[1][0]], [edge[0][1], edge[1][1]], color='blue')
         if path is not None:

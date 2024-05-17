@@ -27,7 +27,7 @@ class Localization(Rover):
         self.__odom.header.frame_id = "odom"
         self.__odom.child_frame_id = "base_link"
 
-        self.__odom_pub = rospy.Publisher("/odom", Odometry, queue_size = 10)
+        self.__odom_pub = rospy.Publisher("/odom/raw", Odometry, queue_size = 10)
         rospy.Subscriber("/wr", Float32, self.__wr_callback)
         rospy.Subscriber("/wl", Float32, self.__wl_callback)
 
@@ -64,9 +64,7 @@ class Localization(Rover):
 
     def __publish_odometry(self) -> None:
         self.__odom.header.stamp = rospy.Time.now()
-
         self.__odom.pose.pose.position.x = self._states["x"]
         self.__odom.pose.pose.position.y = self._states["y"]
         self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self._states["theta"]))
-        
         self.__odom_pub.publish(self.__odom)

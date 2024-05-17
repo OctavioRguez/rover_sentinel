@@ -2,31 +2,54 @@
 
 # Python libraries
 import rospy
-from tf2_ros import Buffer
+import numpy as np
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # ROS messages
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TransformStamped, Quaternion
 from nav_msgs.msg import Odometry
+from tf2_msgs.msg import TFMessage
 
 class Localization_SLAM():
     def __init__(self):
         self.__odom = Odometry()
-        self.__map_pose = PoseStamped()
-        self.__map_pose.header.frame_id = "map"
+        self.__odom.header.frame_id = "map"
+        self.__odom.child_frame_id = "base_link"
+        self.__map_tf = TransformStamped()
+        self.__odom_tf = TransformStamped()
 
-        self.__buffer = Buffer()
         self.__odom_pub = rospy.Publisher("/odom/slam", Odometry, queue_size = 10)
+        rospy.Subscriber("/tf", TFMessage, self.__tf_callback)
+        rospy.wait_for_message("/tf", TFMessage, timeout = 30)
+
+    def __tf_callback(self, msg):
+        for transform in msg.transforms:
+            if transform.header.frame_id == "map" and transform.child_frame_id == "odom":
+                self.__map_tf = transform
+            elif transform.header.frame_id == "odom" and transform.child_frame_id == "base_link":
+                self.__odom_tf = transform
 
     def update_pose(self):
-        tf = self.__buffer.lookup_transform("map", "odom", rospy.Time(0))
+        q = self.__map_tf.transform.rotation
+        rotation = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
+        T1 = np.array([[np.cos(rotation), -np.sin(rotation), 0, -self.__map_tf.transform.translation.x],
+                       [np.sin(rotation), np.cos(rotation), 0, -self.__map_tf.transform.translation.y],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
+        
+        q = self.__odom_tf.transform.rotation
+        rotation = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
+        T2 = np.array([[np.cos(rotation), -np.sin(rotation), 0, self.__odom_tf.transform.translation.x],
+                       [np.sin(rotation), np.cos(rotation), 0, self.__odom_tf.transform.translation.y],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
 
-        self.__map_pose.header.stamp = rospy.Time.now()
-        self.__map_pose.pose.position = tf.transform.translation
-        self.__map_pose.pose.orientation = tf.transform.rotation
-        slam_pose = self.__buffer.transform(self.__map_pose, "base_link")
+        T = np.dot(T1, T2)
+        self.__odom.pose.pose.position.x = T[0, 3]
+        self.__odom.pose.pose.position.y = T[1, 3]
+        self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, np.pi+np.arctan2(T[1, 0], T[0, 0])))
 
         self.__odom.header.stamp = rospy.Time.now()
-        self.__odom.pose.pose = slam_pose.pose
         self.__odom_pub.publish(self.__odom)
 
     def stop(self):

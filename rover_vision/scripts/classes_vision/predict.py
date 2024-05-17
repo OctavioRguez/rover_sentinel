@@ -33,7 +33,7 @@ class modelPredict:
     def __build_model(self, is_cuda:bool) -> None:
         if is_cuda:
             rospy.loginfo("Attempting to use CUDA")
-            self.__session = ort.InferenceSession(self.__model, providers = ['CUDAExecutionProvider'])
+            self.__session = ort.InferenceSession(self.__model, providers = ['TensorrtExecutionProvider', 'CUDAExecutionProvider'])
         else:
             rospy.loginfo("Running on CPU")
             self.__session = ort.InferenceSession(self.__model, providers = ['CPUExecutionProvider'])

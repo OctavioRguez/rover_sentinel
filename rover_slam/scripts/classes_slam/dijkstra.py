@@ -42,5 +42,5 @@ class Dijkstra_Path:
                 print("No path found, retrying...")
 
         print(start_node, goal_node)
-        self.__path_pub.publish(Path(poses=(PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path)))
+        self.__path_pub.publish(Path(poses=[PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path]))
         return path

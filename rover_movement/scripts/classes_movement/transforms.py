@@ -21,7 +21,7 @@ class Transform(Rover):
         self.__tf.child_frame_id = "base_link"
 
         self.__tf_broadcaster = TransformBroadcaster()
-        rospy.Subscriber("/odom", Odometry, self.__callback_odom)
+        rospy.Subscriber("/odom/raw", Odometry, self.__callback_odom)
 
     def __callback_odom(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x
@@ -31,7 +31,7 @@ class Transform(Rover):
 
     def update_transform(self) -> None:
         self.__tf.header.stamp = rospy.Time.now()
-        self.__tf.transform.translation.x = self._states["x"]
-        self.__tf.transform.translation.y = self._states["y"]
+        self.__tf.transform.translation.x = -self._states["x"]
+        self.__tf.transform.translation.y = -self._states["y"]
         self.__tf.transform.rotation = Quaternion(*quaternion_from_euler(0, 0, self._states["theta"]))
         self.__tf_broadcaster.sendTransform(self.__tf)
