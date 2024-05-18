@@ -4,5 +4,5 @@
         <param name="node_rate/value" type="int" value="100"/>
 
         <!-- Nodes -->
-        <node name="rover_master_arduino" pkg="rover_sensores" type="master_arduino.py" output="screen"/>
+        <node name="rover_master_arduino" pkg="rover_sensors" type="master_arduino.py" output="screen"/>
 </launch>

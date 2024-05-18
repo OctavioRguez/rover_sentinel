@@ -20,7 +20,9 @@ class Controller(Rover):
         self.__vmax, self.__wmax = 0.1, 0.3
         self.__kpd = 0.6
         self.__kpr = 2.5
-        self.__point = {"x":1.0, "y":0.0}
+
+        self.__path = []
+        self.__point = 0
 
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
@@ -47,12 +49,16 @@ class Controller(Rover):
         self.__left = msg.ranges[275:350]
         self.__right = msg.ranges[800:925]
     
-    def __path_callback(self):
-        pass
+    def __path_callback(self, msg:Path) -> None:
+        self.__path = msg.poses
 
     def control(self) -> None:
-        dx = self.__point["x"] - self._states["x"]
-        dy = self.__point["y"] - self._states["y"]
+        if not self.__path or self.__point >= len(self.__path):
+            self._v, self._w = 0.0, 0.0
+            return
+        
+        dx = self.__path[self.__point].pose.position.x - self._states["x"]
+        dy = self.__path[self.__point].pose.position.y - self._states["y"]
         dist = np.sqrt(dx**2 + dy**2)
 
         thetad = np.arctan2(dy, dx)
@@ -60,6 +66,7 @@ class Controller(Rover):
 
         self._v = self.__vmax*np.tanh(dist / self.__vmax) if dist > 0.03 else 0.0
         self._w = self.__wmax*np.tanh(thetae / self.__wmax) if abs(thetae) > 0.03 else 0.0
+        self.__point = self.__point + 1 if (dist < 0.03 and abs(thetae) < 0.03) else self.__point
         self.__avoid()
 
     def __avoid(self) -> None:

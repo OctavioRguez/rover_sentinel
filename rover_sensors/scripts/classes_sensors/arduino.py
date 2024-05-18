@@ -31,6 +31,11 @@ class Arduino:
         # Convert bytes in values
         sound = (data[0] << 8) + data[1]
         distance = (data[2] << 8) + data[3]
+        distance = 0 if (distance >= 1201) else distance
         self.__sound_pub.publish(sound)
         self.__distance_pub.publish(distance)
-        rospy.loginfo(sound, distance)
+        print(sound)
+
+    def stop(self) -> None:
+        self.__bus.write_byte(self.__addr, 0)
+        rospy.loginfo("Stopping Arduino Master")
