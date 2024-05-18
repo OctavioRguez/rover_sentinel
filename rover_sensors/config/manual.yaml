@@ -1,3 +1,7 @@
+node_rate: 
+  name: Ros nodes rate
+  value: 100
+
 jetson:
   ip:
     name: Jetson UDP IP

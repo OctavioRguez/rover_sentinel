@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+        <!-- Rate for nodes -->
+        <param name="node_rate/value" type="int" value="100"/>
+
+        <!-- Nodes -->
+        <node name="rover_master_arduino" pkg="rover_sensores" type="master_arduino.py" output="screen"/>
+</launch>
