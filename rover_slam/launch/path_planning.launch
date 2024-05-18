@@ -5,5 +5,4 @@
 
     <!-- Nodes -->
     <node name="rover_planning" pkg="rover_slam" type="planning.py" output="screen"/>
-
 </launch>

@@ -1,6 +1,7 @@
 node_rate: 
-  name: Ros_rate
+  name: Ros nodes rate
   value: 100
+
 rover:
   wheelbase:
     name: Distance between the 2 wheels

@@ -1,0 +1,15 @@
+jetson:
+  ip:
+    name: Jetson UDP IP
+    value: "0.0.0.0"
+  port:
+    name: UPD Port
+    value: 5005
+
+control:
+  kpt:
+    name: Proportional translational constant
+    value: 0.2
+  kpr:
+    name: Proportional rotational constant
+    value: 0.2

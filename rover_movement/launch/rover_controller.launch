@@ -1,12 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-        <!-- Parameters file -->
-        <rosparam file="$(find rover_movement)/config/rover.yaml"/>
-
         <!-- Activate lidar -->
         <include file="$(find rplidar_ros)/launch/rplidar_a1.launch" />
 
+        <!-- Odometry launch -->
+        <include file="$(find rover_movement)/launch/rover_odometry.launch" />
+
         <!-- Nodes -->
-        <node name="rover_localization" pkg="rover_movement" type="localization.py" output="screen"/>
         <node name="rover_controller" pkg="rover_movement" type="controller.py" output="screen"/>
 </launch>

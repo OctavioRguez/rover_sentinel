@@ -1,6 +1,7 @@
 node_rate: 
-  name: Ros_rate
+  name: Ros nodes rate
   value: 100
+
 planning:
   safe_dist:
     name: Safe distance from obstacles
