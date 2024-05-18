@@ -18,9 +18,8 @@ class Controller(Rover):
         Rover.__init__(self)
 
         self.__vmax, self.__wmax = 0.1, 0.3
-        self.__kp = 0.33*np.eye(2)
-        self.__kd = 0.6
-        self.__kr = 2.5
+        self.__kpd = 0.6
+        self.__kpr = 2.5
         self.__point = {"x":1.0, "y":0.0}
 
         # Lidar data
@@ -52,52 +51,29 @@ class Controller(Rover):
         pass
 
     def control(self) -> None:
-        # dx = self.__point["x"] - self._states["x"]
-        # dy = self.__point["y"] - self._states["y"]
-        # dist = np.sqrt(dx**2 + dy**2)
+        dx = self.__point["x"] - self._states["x"]
+        dy = self.__point["y"] - self._states["y"]
+        dist = np.sqrt(dx**2 + dy**2)
 
-        # thetad = np.arctan2(dy, dx)
-        # thetae = self._wrap_to_Pi(thetad - self._states["theta"])
+        thetad = np.arctan2(dy, dx)
+        thetae = self._wrap_to_Pi(thetad - self._states["theta"])
 
-        # self._v = self.__vmax*np.tanh(dist / self.__vmax) if dist > 0.03 else 0.0
-        # self._w = self.__wmax*np.tanh(thetae / self.__wmax) if abs(thetae) > 0.03 else 0.0
-
-        q = np.array([self._states["x"], self._states["y"]])
-        qd = np.array([self.__point["x"], self.__point["y"]])
-        
-        # Control
-        err = qd - q
-        D = np.array([
-            [(self._r / 2 * np.cos(self._states["theta"]) - self._h*self._r / self._l * np.sin(self._states["theta"])),
-             (self._r / 2 * np.cos(self._states["theta"]) + self._h*self._r / self._l * np.sin(self._states["theta"]))],
-            [(self._r / 2 * np.sin(self._states["theta"]) + self._h*self._r / self._l * np.cos(self._states["theta"])), 
-             (self._r / 2 * np.sin(self._states["theta"]) - self._h*self._r / self._l * np.cos(self._states["theta"]))]
-        ])
-        u = np.dot(np.linalg.inv(D), np.dot(self.__kp, err))
-        q_dot = np.dot(self.__kp, err)
-        theta_dot = np.dot(np.array([[self._r / self._l, -self._r / self._l]]), u)
-
-        # Check if the robot has reached the set point
-        if np.linalg.norm(err) < 0.01:
-            self._v = 0.0
-            self._w = 0.0
-        else:
-            self._v = self.__vmax*np.tanh(np.sqrt(q_dot[0]**2 + q_dot[1]**2) / self.__vmax)
-            self._w = self.__wmax*np.tanh(theta_dot[0] / self.__wmax)
+        self._v = self.__vmax*np.tanh(dist / self.__vmax) if dist > 0.03 else 0.0
+        self._w = self.__wmax*np.tanh(thetae / self.__wmax) if abs(thetae) > 0.03 else 0.0
         self.__avoid()
 
     def __avoid(self) -> None:
         # Minimum distance from obstacles at each direction
-        # min_forward, min_left, min_right = [min(self.__forward), min(self.__left), min(self.__right)]
-        # if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
-        #     self._v, self._w = 0.0, self.__wmax
-        # elif min_left < self._safe_distance:
-        #     self._w -= self.__kr*(self._safe_distance - min_left)
-        # elif min_right < self._safe_distance:
-        #     self._w += self.__kr*(self._safe_distance - min_right)
-        # elif min_forward < self._safe_distance:
-        #     self._v -= self.__kd*(self._safe_distance - min_forward)
-        #     self._w += self.__obstacle_forward(min_forward, min_left, min_right)
+        min_forward, min_left, min_right = [min(self.__forward), min(self.__left), min(self.__right)]
+        if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
+            self._v, self._w = 0.0, self.__wmax
+        elif min_left < self._safe_distance:
+            self._w -= self.__kpr*(self._safe_distance - min_left)
+        elif min_right < self._safe_distance:
+            self._w += self.__kpr*(self._safe_distance - min_right)
+        elif min_forward < self._safe_distance:
+            self._v -= self.__kpd*(self._safe_distance - min_forward)
+            self._w += self.__obstacle_forward(min_forward, min_left, min_right)
 
         self.__vel.linear.x = self._v
         self.__vel.angular.z = self._w
@@ -108,7 +84,7 @@ class Controller(Rover):
             self.__turn_right = True if right >= left else False
             self.__turning = False
         # Rotate to the direction with the higher distance
-        return -self.__kr*(self._safe_distance - forward) if self.__turn_right else self.__kr*(self._safe_distance - forward)
+        return -self.__kpr*(self._safe_distance - forward) if self.__turn_right else self.__kpr*(self._safe_distance - forward)
 
     def stop(self) -> None:
         self.__vel.linear.x = 0.0
