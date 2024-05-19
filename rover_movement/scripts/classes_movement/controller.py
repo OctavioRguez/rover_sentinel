@@ -16,10 +16,9 @@ from .rover import Rover
 class Controller(Rover):
     def __init__(self) -> None:
         Rover.__init__(self)
-
-        self.__vmax, self.__wmax = 0.1, 0.3
-        self.__kpd = 0.6
-        self.__kpr = 2.5
+        self.__vmax, self.__wmax = 0.15, 0.3
+        self.__kpd = 1.25
+        self.__kpr = 7.0
 
         self.__path = []
         self.__point = 0
@@ -46,9 +45,9 @@ class Controller(Rover):
 
     def __lidar_callback(self, msg:LaserScan) -> None:
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
-        self.__left = msg.ranges[275:350]
-        self.__right = msg.ranges[800:925]
-    
+        self.__left = msg.ranges[144:400]
+        self.__right = msg.ranges[750:1004]
+
     def __path_callback(self, msg:Path) -> None:
         self.__path = msg.poses
 
@@ -80,8 +79,11 @@ class Controller(Rover):
             self._w += self.__kpr*(self._safe_distance - min_right)
         elif min_forward < self._safe_distance:
             self._v -= self.__kpd*(self._safe_distance - min_forward)
-            self._w += self.__obstacle_forward(min_forward, min_left, min_right)
+            self._w += self.__kpr*self.__obstacle_forward(min_forward, min_left, min_right)
+        else:
+            self.__turning = True
 
+        self._w = self.__wmax*np.tanh(self._w / self.__wmax)
         self.__vel.linear.x = self._v
         self.__vel.angular.z = self._w
         self.__vel_pub.publish(self.__vel)
@@ -91,7 +93,7 @@ class Controller(Rover):
             self.__turn_right = True if right >= left else False
             self.__turning = False
         # Rotate to the direction with the higher distance
-        return -self.__kpr*(self._safe_distance - forward) if self.__turn_right else self.__kpr*(self._safe_distance - forward)
+        return -(self._safe_distance - forward) if self.__turn_right else (self._safe_distance - forward)
 
     def stop(self) -> None:
         self.__vel.linear.x = 0.0

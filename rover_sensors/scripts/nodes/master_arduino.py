@@ -16,8 +16,7 @@ if __name__=='__main__':
     print("The Arduino Master Node is Running")
     try:    
         while not rospy.is_shutdown():
-            master.send_buzzer_data()
-            master.receive_sensor_data()
+            master.receive_sensors_data()
             rate.sleep()
     except rospy.ROSInterruptException:
         pass

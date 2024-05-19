@@ -40,12 +40,14 @@ class StateMachine:
         elif self.__state == "NAVEGACION":
             if self.__manual:
                 self.__state = "MANUAL"
+            elif self.__person:
+                self.__state = "ALERTA2"
             elif self.__sound:
                 self.__state = "ALERTA1"
             self.navegacion()
 
         elif self.__state == "MANUAL":
-            if self.__manual == False:
+            if not self.__manual:
                 self.__state = "NAVEGACION"
             self.manual()
 

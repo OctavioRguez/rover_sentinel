@@ -50,7 +50,7 @@ class Joystick:
         self.__activate_manual()
         if self.__manual:
             v = self.__map_signal(self.__linear)*self.__kpt
-            w = self.__map_signal(self.__angular)*self.__kpr
+            w = -self.__map_signal(self.__angular)*self.__kpr
             self.__vel.linear.x = 0.0 if abs(v) < 0.03 else v
             self.__vel.angular.z = 0.0 if abs(w) < 0.03 else w
             self.__vel_pub.publish(self.__vel)

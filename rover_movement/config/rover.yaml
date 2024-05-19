@@ -14,5 +14,5 @@ rover:
     value: 0.01
   safe_distance: 
     name: Safe from rover to obstacles
-    value: 0.25
+    value: 0.3
     
