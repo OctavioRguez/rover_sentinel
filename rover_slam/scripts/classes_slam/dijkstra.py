@@ -10,9 +10,10 @@ from geometry_msgs.msg import PoseStamped, Pose, Point
 from nav_msgs.msg import Odometry, Path
 
 class Dijkstra_Path:
-    def __init__(self, graph:nx.Graph) -> None:
+    def __init__(self, graph:nx.Graph, shape:tuple) -> None:
         self.__graph = graph
         self.__start = (0, 0)
+        self.__width, self.__height = shape
 
         self.__path_pub = rospy.Publisher("/path", Path, queue_size = 10)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
@@ -37,5 +38,6 @@ class Dijkstra_Path:
                 print("No path found, retrying...")
 
         print(start_node, goal_node)
-        self.__path_pub.publish(Path(poses=[PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path]))
+        self.__path_pub.publish(Path(poses=[PoseStamped(pose=Pose(position=
+                Point(x=(pos[0]-self.__width/2)/40, y=(pos[1]-self.__height/2)/40))) for pos in path]))
         return path

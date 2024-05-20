@@ -85,8 +85,8 @@ class StateMachine:
 
     def __move_to_navegation(self) -> None:
         Map_Sections().split(2, 2)
-        graph = PRM().calculate_prm()
-        self.__planner = Dijkstra_Path(graph)
+        graph, shape = PRM().calculate_prm()
+        self.__planner = Dijkstra_Path(graph, shape)
 
     def __navigation(self) -> None:
         self.__nav.compute_lasers()

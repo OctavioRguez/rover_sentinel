@@ -92,7 +92,7 @@ class PRM:
             point = self.__approach_point(neighbor, point)
             if point is not None:
                 self.__add_edges(point, neighbor)
-        return self.__graph
+        return self.__graph, self.__map.shape
 
     # Plot the map, RRT points and Dijkstra path
     def plot(self, path:list) -> None:
