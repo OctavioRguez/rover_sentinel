@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Lidar -->
+    <include file="$(find rplidar_ros)/launch/rplidar_a1.launch"></include>
+
+    <!-- Odometry Raw -->
+    <include file="$(find rover_movement)/launch/rover_odometry.launch"></include>
+
+    <!-- SLAM -->
+    <include file="$(find rover_slam)/launch/gmapping_slam.launch"></include>
+    <include file="$(find rover_slam)/launch/rover_slam_odometry.launch"></include>
+
+    <!-- Person classificator -->
+    <include file="$(find rover_vision)/launch/rover_detection.launch"></include>
+
+    <!-- Nodes -->
+    <node name="rover_state_machine" pkg="rover_sentinel" type="states.py" output="screen"/>
+</launch>

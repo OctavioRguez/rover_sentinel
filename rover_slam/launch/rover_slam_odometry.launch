@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Parameters file -->
+    <rosparam file="$(find rover_slam)/config/planning.yaml"/>
+
+    <!-- Nodes -->
+    <node name="slam_pose" pkg="rover_slam" type="slam_position.py" output="screen"/>
+</launch>

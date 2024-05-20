@@ -23,7 +23,7 @@ class Joystick:
 
         self.__vel = Twist()
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
-        self.__nav_pub = rospy.Publisher("/navigate", Bool, queue_size = 10)
+        self.__nav_pub = rospy.Publisher("/manual_mode", Bool, queue_size = 10)
 
     def __udp_connection(self, ip:str, port):
         rospy.loginfo("Starting the UPD connection")

@@ -95,6 +95,11 @@ class Controller(Rover):
         # Rotate to the direction with the higher distance
         return -(self._safe_distance - forward) if self.__turn_right else (self._safe_distance - forward)
 
+    def rotate(self) -> None:
+        self.__vel.linear.x = 0.0
+        self.__vel.angular.z = self.__wmax
+        self.__vel_pub.publish(self.__vel)
+
     def stop(self) -> None:
         self.__vel.linear.x = 0.0
         self.__vel.angular.z = 0.0

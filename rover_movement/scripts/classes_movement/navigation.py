@@ -56,7 +56,6 @@ class Rover_Navigation(Rover):
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
 
     def move(self) -> None:
-        self.__compute_lasers()
         min_forward = min(min(self.__forward), self.__front_laser)
         min_left = min(min(self.__left), self.__left_laser)
         min_right = min(min(self.__right), self.__right_laser)
@@ -85,7 +84,7 @@ class Rover_Navigation(Rover):
                 self.__set_vel(0.0, -self._w) if min_right >= min_left else self.__set_vel(0.0, self._w)
         self.__vel_pub.publish(self.__velocity)
 
-    def __compute_lasers(self) -> None:
+    def compute_lasers(self) -> None:
         rover_point = np.array([self._states["x"], self._states["y"]])
         # Points from the lasers colliding with the borders
         front_points = self.__get_laser_points(self._states["theta"])
