@@ -1,8 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Parameters file -->
-    <rosparam file="$(find rover_slam)/config/planning.yaml"/>
-
     <!-- Activate lidar -->
     <include file="$(find rplidar_ros)/launch/rplidar_a1.launch"/>
 

@@ -4,8 +4,7 @@
 import rospy
 
 # Classes
-from classes_slam import PRM
-from classes_slam import Dijkstra_Path
+from classes_slam import PRM, Dijkstra_Path
 
 if __name__ == "__main__":
     rospy.init_node('PRM_Dijkstra_Planning')

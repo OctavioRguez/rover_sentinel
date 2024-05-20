@@ -1,1 +1,1 @@
-rover_slam/Borders[] borders
+rover_slam/Border[] borders

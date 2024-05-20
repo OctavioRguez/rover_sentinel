@@ -22,6 +22,7 @@ class Transform(Rover):
 
         self.__tf_broadcaster = TransformBroadcaster()
         rospy.Subscriber("/odom/raw", Odometry, self.__callback_odom)
+        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
 
     def __callback_odom(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x

@@ -30,6 +30,8 @@ class Localization(Rover):
         self.__odom_pub = rospy.Publisher("/odom/raw", Odometry, queue_size = 10)
         rospy.Subscriber("/wr", Float32, self.__wr_callback)
         rospy.Subscriber("/wl", Float32, self.__wl_callback)
+        rospy.wait_for_message("/wr", Float32, timeout = 30)
+        rospy.wait_for_message("/wl", Float32, timeout = 30)
 
     def __wr_callback(self, msg:Float32) -> None:
         self.__queue_wr.append(msg.data)

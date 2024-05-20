@@ -11,9 +11,12 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   rospy
-  rover_slam
   sensor_msgs
   std_msgs
+  rover_movement
+  rover_sensors
+  rover_slam
+  rover_vision
 )
 
 ## System dependencies are found with CMake's conventions

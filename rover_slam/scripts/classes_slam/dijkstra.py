@@ -6,7 +6,6 @@ import networkx as nx
 import numpy as np
 
 # ROS messages
-from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from nav_msgs.msg import Odometry, Path
 
@@ -16,15 +15,11 @@ class Dijkstra_Path:
         self.__start = (0, 0)
 
         self.__path_pub = rospy.Publisher("/path", Path, queue_size = 10)
-        rospy.Subscriber("/odom_slam", Odometry, self.__odom_callback)
-        rospy.Subscriber("/get_path", Bool, self.__get_path_callback)
+        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
+        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
 
     def __odom_callback(self, msg):
         self.__start = (msg.pose.pose.position.x, msg.pose.pose.position.y)
-
-    def __get_path_callback(self, msg):
-        if msg.data:
-            self.calculate_dijkstra()
         
     def __dist(self, p1:tuple, p2:tuple) -> float:
         return np.linalg.norm(np.array(p1) - np.array(p2))

@@ -36,6 +36,7 @@ class Controller(Rover):
         rospy.Subscriber("/path", Path, self.__path_callback)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
+        rospy.wait_for_message("/path", Path, timeout = 30)
 
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
@@ -45,14 +46,14 @@ class Controller(Rover):
 
     def __lidar_callback(self, msg:LaserScan) -> None:
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
-        self.__left = msg.ranges[144:400]
-        self.__right = msg.ranges[750:1004]
+        self.__left = msg.ranges[144:430]
+        self.__right = msg.ranges[717:1004]
 
     def __path_callback(self, msg:Path) -> None:
         self.__path = msg.poses
 
     def control(self) -> None:
-        if not self.__path or self.__point >= len(self.__path):
+        if self.__point >= len(self.__path):
             self._v, self._w = 0.0, 0.0
             return
         
@@ -83,9 +84,8 @@ class Controller(Rover):
         else:
             self.__turning = True
 
-        self._w = self.__wmax*np.tanh(self._w / self.__wmax)
         self.__vel.linear.x = self._v
-        self.__vel.angular.z = self._w
+        self.__vel.angular.z = self.__wmax*np.tanh(self._w / self.__wmax)
         self.__vel_pub.publish(self.__vel)
 
     def __obstacle_forward(self, forward:float, left:float, right:float) -> float:

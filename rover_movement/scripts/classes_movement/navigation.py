@@ -6,11 +6,10 @@ import numpy as np
 from tf.transformations import euler_from_quaternion
 
 # ROS messages
-from std_msgs.msg import Bool
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-from rover_slam.msg import Borders
+from rover_slam.msg import Border
 
 # Parent Class
 from .rover import Rover
@@ -22,11 +21,10 @@ class Rover_Navigation(Rover):
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self._v, self._w = 0.2, 0.2
         self.__turning = True
-        self.__navigate = True
 
         # Border limits
-        self.__x_min, self.__x_max = -0.5, 0.5
-        self.__y_min, self.__y_max = -0.5, 0.5
+        self.__x_min, self.__x_max = -1.0, 1.0
+        self.__y_min, self.__y_max = -1.0, 1.0
 
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
@@ -37,9 +35,10 @@ class Rover_Navigation(Rover):
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
-        rospy.Subscriber("/curr_border", Borders, self.__borders_callback)
-        rospy.Subscriber("/navigate", Bool, self.__nav_callback)
+        rospy.Subscriber("/curr_border", Border, self.__borders_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
+        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
+        rospy.wait_for_message("/curr_border", Border, timeout = 30)
 
     def __lidar_callback(self, msg:LaserScan) -> None:
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
@@ -52,45 +51,39 @@ class Rover_Navigation(Rover):
         q = msg.pose.pose.orientation
         self._states["theta"] = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
 
-    def __borders_callback(self, msg:Borders) -> None:
+    def __borders_callback(self, msg:Border) -> None:
         self.__x_min, self.__x_max = msg.upper.x, msg.lower.x
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
-    
-    def __nav_callback(self, msg:Bool):
-        if not msg.data:
-            self.stop()
-        self.__navigate = msg.data
 
     def move(self) -> None:
-        if self.__navigate:
-            # self.__compute_lasers()
-            min_forward = min(min(self.__forward), self.__front_laser)
-            min_left = min(min(self.__left), self.__left_laser)
-            min_right = min(min(self.__right), self.__right_laser)
+        self.__compute_lasers()
+        min_forward = min(min(self.__forward), self.__front_laser)
+        min_left = min(min(self.__left), self.__left_laser)
+        min_right = min(min(self.__right), self.__right_laser)
 
-            # No obstacles in any direction
-            if min_forward > self._safe_distance:
-                self.__turning = True
-                self.__set_vel(self._v, 0.0)
-            elif self.__turning:
-                self.__turning = False
-                # Obstacles in all directions
-                if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
-                    self.__set_vel(0.0, -self._w)
-                # Obstacles in both left and right sides
-                elif abs(min_left - min_right) < self._safe_distance:
-                    self.__set_vel(0.0, self._w)
-                # Obstacles at the left
-                elif min_left < self._safe_distance:
-                    self.__set_vel(0.0, -self._w)
-                # Obstacles at the right
-                elif min_right < self._safe_distance:
-                    self.__set_vel(0.0, self._w)
-                # Obstacles at the front
-                else:
-                    # Rotate to the direction with the higher distance
-                    self.__set_vel(0.0, -self._w) if min_right >= min_left else self.__set_vel(0.0, self._w)
-            self.__vel_pub.publish(self.__velocity)
+        # No obstacles in any direction
+        if min_forward > self._safe_distance:
+            self.__turning = True
+            self.__set_vel(self._v, 0.0)
+        elif self.__turning:
+            self.__turning = False
+            # Obstacles in all directions
+            if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
+                self.__set_vel(0.0, -self._w)
+            # Obstacles in both left and right sides
+            elif abs(min_left - min_right) < self._safe_distance:
+                self.__set_vel(0.0, self._w)
+            # Obstacles at the left
+            elif min_left < self._safe_distance:
+                self.__set_vel(0.0, -self._w)
+            # Obstacles at the right
+            elif min_right < self._safe_distance:
+                self.__set_vel(0.0, self._w)
+            # Obstacles at the front
+            else:
+                # Rotate to the direction with the higher distance
+                self.__set_vel(0.0, -self._w) if min_right >= min_left else self.__set_vel(0.0, self._w)
+        self.__vel_pub.publish(self.__velocity)
 
     def __compute_lasers(self) -> None:
         rover_point = np.array([self._states["x"], self._states["y"]])
