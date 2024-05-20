@@ -8,6 +8,7 @@ import onnxruntime as ort
 import torch
 
 # ROS messages
+from std_msgs.msg import Bool
 from sensor_msgs.msg import CompressedImage
 
 class modelPredict:
@@ -24,6 +25,7 @@ class modelPredict:
         self.__compressedImg.format = "jpeg"
 
         self.__detection_pub = rospy.Publisher("/prediction/compressed", CompressedImage, queue_size = 10)
+        self.__person_pub = rospy.Publisher("/detected/person", Bool, queue_size = 10)
         rospy.Subscriber("/image/compressed", CompressedImage, self.__image_callback)
         rospy.wait_for_message("/image/compressed", CompressedImage, timeout = 30)
 
@@ -96,6 +98,7 @@ class modelPredict:
         if class_ids:
             # Get the detected object with the highest score
             index = np.argmax(scores)
+            self.__person_pub.publish(True)
 
             x, y, w, h = tuple(map(int, boxes[index]))
             color = self.__colors[class_ids[index]]
