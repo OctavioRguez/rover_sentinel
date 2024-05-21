@@ -2,9 +2,12 @@
 
 # Python libraries
 import rospy
+import random
+import time
 
 # ROS messages
 from std_msgs.msg import Bool, Int8
+from rover_slam.msg import Quadrants, Border
 
 # Rover packages
 from classes_movement import Rover_Navigation, Controller
@@ -19,16 +22,26 @@ class StateMachine:
         self.__person = False
         self.__manual_mode = False
 
+        self.__curr_quadrant = None
+        self.__quadrants = []
+        self.__visied_quadrants = []
+        self.__last_quadrant_time = 0
+
         self.__nav = Rover_Navigation()
         self.__control = Controller()
         self.__joystick = Joystick()
 
         self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
+        self.__border_pub = rospy.Publisher("/curr_border", Border, queue_size = 10)
 
+        rospy.Subscriber("/borders", Quadrants, self.__borders_callback)
         rospy.Subscriber("/detected/sound", Bool, self.__sound_callback)
         rospy.Subscriber("/detected/person", Bool, self.__person_callback)
         rospy.Subscriber("/map_ready", Bool, self.__map_ready_callback)
         rospy.Subscriber("/manual_mode", Bool, self.__manual_callback)
+
+    def __borders_callback(self, msg:Quadrants) -> None:
+        self.__quadrants = msg.borders
 
     def __manual_callback(self, msg:bool) -> None:
         self.__manual_mode = msg.data
@@ -87,12 +100,15 @@ class StateMachine:
         Map_Sections().split(2, 2)
         graph, shape = PRM().calculate_prm()
         self.__planner = Dijkstra_Path(graph, shape)
+        self.__select_quadrant()
+        self.__planner.calculate_dijkstra(self.__curr_quadrant)
+        self.__control.control()
+        self.__border_pub.publish(self.__curr_quadrant)
 
     def __navigation(self) -> None:
         self.__nav.compute_lasers()
         self.__nav.move()
-        # self.__planner.calculate_dijkstra()
-        # self.__control.control()
+        self.__check_time()
 
     def __manual(self) -> None:
         self.__joystick.manual_control()
@@ -103,6 +119,25 @@ class StateMachine:
     def __alert2(self) -> None:
         self.__nav.stop()
         self.__buzzer_pub.publish(1)
+
+    def __select_quadrant(self) -> None:
+        num_of_quadrants = len(self.__quadrants)
+        while True:
+            self.__curr_quadrant = self.__quadrants[random.randint(0, num_of_quadrants - 1)]
+            if not self.__curr_quadrant in self.__visied_quadrants:
+                self.__visied_quadrants.append(self.__curr_quadrant)
+                self.__last_quadrant_time = time.time()
+
+    def __check_time(self) -> None:
+        current_time = time.time()
+        elapsed_time = current_time - self.__last_quadrant_time
+        if elapsed_time >= 30:
+            if len(self.__quadrants) == len(self.__visied_quadrants):
+                self.__visied_quadrants = []
+            self.__select_quadrant()
+            self.__planner.calculate_dijkstra(self.__curr_quadrant)
+            self.__control.control()
+            self.__border_pub.publish(self.__curr_quadrant)
 
     def stop(self) -> None:
         rospy.loginfo("Stoping the State Machine Node")

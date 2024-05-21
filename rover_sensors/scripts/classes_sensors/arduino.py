@@ -30,7 +30,7 @@ class Arduino:
         sound = (data[0] << 8) + data[1]
         distance = (data[2] << 8) + data[3] % 1201
         self.__distance_pub.publish(distance/10)
-        if (sound <= 660 or sound >= 670):
+        if (sound <= 670 or sound >= 685):
             self.send_buzzer_data(1)
             self.__sound_pub.publish(True)
 

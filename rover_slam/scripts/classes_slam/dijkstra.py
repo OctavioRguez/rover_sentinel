@@ -8,6 +8,7 @@ import numpy as np
 # ROS messages
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from nav_msgs.msg import Odometry, Path
+from rover_slam.msg import Border
 
 class Dijkstra_Path:
     def __init__(self, graph:nx.Graph, shape:tuple) -> None:
@@ -19,19 +20,22 @@ class Dijkstra_Path:
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
 
-    def __odom_callback(self, msg):
+    def __odom_callback(self, msg) -> None:
         self.__start = (msg.pose.pose.position.x, msg.pose.pose.position.y)
         
     def __dist(self, p1:tuple, p2:tuple) -> float:
         return np.linalg.norm(np.array(p1) - np.array(p2))
 
-    def calculate_dijkstra(self):
+    def calculate_dijkstra(self, border:Border) -> None:
         # Approximate for a start node
         start_node = min(self.__graph.nodes(), key = lambda x: self.__dist(self.__start, x))
         while True:
             # Execute dijkstra until a valid path is found
             try:
-                goal_node = list(self.__graph.nodes())[np.random.randint(0, len(self.__graph.nodes()))]
+                while True:
+                    goal_node = list(self.__graph.nodes())[np.random.randint(0, len(self.__graph.nodes()))]
+                    if border.upper.x <= goal_node[0] <= border.lower.x and border.upper.y <= goal_node[1] <= border.lower.y:
+                        break
                 path = nx.dijkstra_path(self.__graph, start_node, goal_node)
                 break
             except nx.NetworkXNoPath:
