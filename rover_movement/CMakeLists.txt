@@ -168,6 +168,7 @@ catkin_install_python(PROGRAMS
   scripts/nodes/navigation.py
   scripts/nodes/controller.py
   scripts/nodes/localization.py
+  scripts/nodes/kalman_filter.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

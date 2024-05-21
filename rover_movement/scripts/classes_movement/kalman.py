@@ -33,12 +33,14 @@ class Kalman_Filter(Rover):
         self.__odom.child_frame_id = "base_link"
 
         self.__pose = Pose()
+        self.__cmd_vel = Twist()
 
         self.__odom_pub = rospy.Publisher("/odom/kalman", Odometry, queue_size = 10)
         self.__nav_pub = rospy.Publisher("/kalman_predict/pose/navigation", Pose, queue_size = 10)
         self.__control_pub = rospy.Publisher("/kalman_predict/pose/controller", Pose, queue_size = 10)
         rospy.Subscriber("/odom/slam", Odometry, self.__odom_callback)
         rospy.Subscriber("/kalman_predict/vel", Twist, self.__vel_callback)
+        rospy.Subscriber("/cmd_vel", Twist, self.__cmd_vel_callback)
         rospy.wait_for_message("/odom/slam", Odometry, timeout = 30)
 
     def __odom_callback(self, msg:Odometry) -> None:
@@ -50,17 +52,24 @@ class Kalman_Filter(Rover):
     def __vel_callback(self, msg:Twist) -> None:
         self._v = msg.linear.x
         self._w = msg.angular.z
+    
+    def __cmd_vel_callback(self, msg:Twist) -> None:
+        self.__cmd_vel = msg
 
-    def __predict(self, controlled:bool) -> None:
+    def __predict(self, mode:str) -> None:
         dt = self._get_dt()
         self.__pose.position.x = self.__x[0]
         self.__pose.position.y = self.__x[1]
         self.__pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self.__x[2]))
-        if controlled:
+        if mode == "Control":
             self.__control_pub.publish(self.__pose)
-        else:
+            rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 30)
+        elif mode == "Nav":
             self.__nav_pub.publish(self.__pose)
-        rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 30)
+            rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 30)
+        else:
+            rospy.wait_for_message("/cmd_vel", Twist, timeout = 30)
+            self._v, self._w = self.__cmd_vel.linear.x, self.__cmd_vel.angular.z
         x_dot = [self._v*np.cos(self.__x[2]), self._v*np.sin(self.__x[2]), self._w]
         self.__x = self.__x + x_dot*dt
         self.__P = self.__P + self.__Q
@@ -78,7 +87,7 @@ class Kalman_Filter(Rover):
         self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self.__x[2]))
         self.__odom_pub.publish(self.__odom)
 
-    def apply_filter(self, controlled:bool) -> None:
-        self.__predict(controlled)
+    def apply_filter(self, mode:str) -> None:
+        self.__predict(mode)
         self.__correct()
         self.__publish()
