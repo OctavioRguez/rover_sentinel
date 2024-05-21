@@ -18,6 +18,7 @@ class StateMachine:
     def __init__(self) -> None:
         self.__state = "EXPLORATION"
         self.__map = False
+        self.__control_ready = False
         self.__sound = False
         self.__person = False
         self.__manual_mode = False
@@ -37,32 +38,54 @@ class StateMachine:
         rospy.Subscriber("/borders", Quadrants, self.__borders_callback)
         rospy.Subscriber("/detected/sound", Bool, self.__sound_callback)
         rospy.Subscriber("/detected/person", Bool, self.__person_callback)
-        rospy.Subscriber("/map_ready", Bool, self.__map_ready_callback)
+        rospy.Subscriber("/ready/map", Bool, self.__ready_map_callback)
+        rospy.Subscriber("/ready/control", Bool, self.__ready_control_callback)
         rospy.Subscriber("/manual_mode", Bool, self.__manual_callback)
 
     def __borders_callback(self, msg:Quadrants) -> None:
         self.__quadrants = msg.borders
 
-    def __manual_callback(self, msg:bool) -> None:
+    def __manual_callback(self, msg:Bool) -> None:
         self.__manual_mode = msg.data
 
-    def __sound_callback(self, msg:bool) -> None:
+    def __sound_callback(self, msg:Bool) -> None:
         self.__sound = msg.data
 
-    def __person_callback(self, msg:bool) -> None:
+    def __person_callback(self, msg:Bool) -> None:
         self.__person = msg.data
 
-    def __map_ready_callback(self,msg:bool) -> None:
+    def __ready_map_callback(self, msg:Bool) -> None:
         self.__map = msg.data
+    
+    def __ready_control_callback(self, msg:Bool) -> None:
+        self.__control_ready = msg.data
 
     def run(self):
         if self.__state == "EXPLORATION":
             if self.__map:
                 self.__nav.stop()
-                self.__move_to_navegation()
+                self.__move_to_control()
+                self.__state = "CONTROL"
+                rospy.loginfo("State: CONTROL - Moving to a quadrant...")
+            self.__exploration()
+
+        elif self.__state == "CONTROL":
+            if self.__manual_mode:
+                self.__nav.stop()
+                self.__state = "MANUAL"
+                rospy.loginfo("State: MANUAL - Use the joystick for moving the rover...")
+            elif self.__control_ready:
+                self.__border_pub.publish(self.__curr_quadrant)
                 self.__state = "NAVIGATION"
                 rospy.loginfo("State: NAVIGATION - Navigating...")
-            self.__exploration()
+            elif self.__person:
+                self.__state = "ALERT2"
+                rospy.loginfo("State: ALERT2 - Person detected")
+            elif self.__sound:
+                self.__buzzer_pub.publish(1)
+                self.__state = "ALERT1"
+                rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
+            self.__control()
 
         elif self.__state == "NAVIGATION":
             if self.__manual_mode:
@@ -96,17 +119,17 @@ class StateMachine:
     def __exploration(self) -> None:
         self.__nav.move()
 
-    def __move_to_navegation(self) -> None:
+    def __move_to_control(self) -> None:
         Map_Sections().split(2, 2)
         graph, shape = PRM().calculate_prm()
         self.__planner = Dijkstra_Path(graph, shape)
         self.__select_quadrant()
         self.__planner.calculate_dijkstra(self.__curr_quadrant)
+    
+    def __control(self) -> None:
         self.__control.control()
-        self.__border_pub.publish(self.__curr_quadrant)
 
     def __navigation(self) -> None:
-        self.__nav.compute_lasers()
         self.__nav.move()
         self.__check_time()
 
@@ -136,8 +159,8 @@ class StateMachine:
                 self.__visied_quadrants = []
             self.__select_quadrant()
             self.__planner.calculate_dijkstra(self.__curr_quadrant)
-            self.__control.control()
-            self.__border_pub.publish(self.__curr_quadrant)
+            self.__state = "CONTROL"
+            self.__nav.stop()
 
     def stop(self) -> None:
         rospy.loginfo("Stoping the State Machine Node")
