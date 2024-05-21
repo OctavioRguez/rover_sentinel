@@ -6,6 +6,7 @@ import numpy as np
 from tf.transformations import euler_from_quaternion
 
 # ROS messages
+from std_msgs.msg import Float32
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
@@ -29,12 +30,14 @@ class Rover_Navigation(Rover):
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
         self.__front_laser, self.__left_laser, self.__right_laser = float("inf"), float("inf"), float("inf")
+        self.__dist = float("inf")
 
         self.__velocity = Twist()
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
+        rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
         rospy.Subscriber("/curr_border", Border, self.__borders_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
@@ -44,6 +47,9 @@ class Rover_Navigation(Rover):
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
         self.__left = msg.ranges[144:430]
         self.__right = msg.ranges[717:1004]
+
+    def __distance_callback(self, msg:Float32) -> None:
+        self.__dist = msg.data
 
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
@@ -56,7 +62,7 @@ class Rover_Navigation(Rover):
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
 
     def move(self) -> None:
-        min_forward = min(min(self.__forward), self.__front_laser)
+        min_forward = min(min(self.__forward), self.__front_laser, self.__dist)
         min_left = min(min(self.__left), self.__left_laser)
         min_right = min(min(self.__right), self.__right_laser)
 

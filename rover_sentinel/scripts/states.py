@@ -4,12 +4,12 @@
 import rospy
 
 # ROS messages
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int8
 
 # Rover packages
 from classes_movement import Rover_Navigation, Controller
 from classes_slam import Map_Sections, PRM, Dijkstra_Path
-from classes_sensors import Arduino, Joystick
+from classes_sensors import Joystick
 
 class StateMachine:
     def __init__(self) -> None:
@@ -21,8 +21,9 @@ class StateMachine:
 
         self.__nav = Rover_Navigation()
         self.__control = Controller()
-        self.__arduino = Arduino()
         self.__joystick = Joystick()
+
+        self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
 
         rospy.Subscriber("/detected/sound", Bool, self.__sound_callback)
         rospy.Subscriber("/detected/person", Bool, self.__person_callback)
@@ -42,7 +43,6 @@ class StateMachine:
         self.__map = msg.data
 
     def run(self):
-        self.__arduino.receive_sensors_data()
         if self.__state == "EXPLORATION":
             if self.__map:
                 self.__nav.stop()
@@ -60,7 +60,7 @@ class StateMachine:
                 self.__state = "ALERT2"
                 rospy.loginfo("State: ALERT2 - Person detected")
             elif self.__sound:
-                self.__arduino.send_buzzer_data(1)
+                self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
             self.__navigation()
@@ -102,7 +102,7 @@ class StateMachine:
 
     def __alert2(self) -> None:
         self.__nav.stop()
-        self.__arduino.send_buzzer_data(1)
+        self.__buzzer_pub.publish(1)
 
     def stop(self) -> None:
         rospy.loginfo("Stoping the State Machine Node")

@@ -6,6 +6,7 @@ import numpy as np
 from tf.transformations import euler_from_quaternion
 
 # ROS messages
+from std_msgs.msg import Float32
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry, Path
@@ -25,6 +26,7 @@ class Controller(Rover):
 
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
+        self.__dist = float("inf")
         self.__turn_right = False
         self.__turning = True
 
@@ -33,6 +35,7 @@ class Controller(Rover):
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
+        rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
         rospy.Subscriber("/path", Path, self.__path_callback)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
@@ -48,6 +51,9 @@ class Controller(Rover):
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
         self.__left = msg.ranges[144:430]
         self.__right = msg.ranges[717:1004]
+    
+    def __distance_callback(self, msg:Float32) -> None:
+        self.__dist = msg.data
 
     def __path_callback(self, msg:Path) -> None:
         self.__path = msg.poses
@@ -71,7 +77,7 @@ class Controller(Rover):
 
     def __avoid(self) -> None:
         # Minimum distance from obstacles at each direction
-        min_forward, min_left, min_right = [min(self.__forward), min(self.__left), min(self.__right)]
+        min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
         if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
             self._v, self._w = 0.0, self.__wmax
         elif min_left < self._safe_distance:
