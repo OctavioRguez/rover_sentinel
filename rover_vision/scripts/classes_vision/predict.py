@@ -14,9 +14,9 @@ from sensor_msgs.msg import CompressedImage
 class modelPredict:
     def __init__(self):
         self.__model = rospy.get_param("/classification/model/path", default = "best.onnx")
-        self.__class_list = rospy.get_param("/classification/classes/list", default = [])
-        self.__colors = np.random.uniform(0, 255, size=(len(self.__class_list), 3))
-        self.__conf = rospy.get_param("/classification/confidence/value", default = 0.7)
+        self.__conf = rospy.get_param("/classification/confidence/value", default = 0.5)
+        self.__color = np.random.uniform(0, 255, 3)
+        self.__iou_threshold = 0.5
 
         self.__build_model(rospy.get_param("/classification/isCuda/value", default = False))
         self.__img = None
@@ -53,8 +53,37 @@ class modelPredict:
         preds = self.__session.run(None, inputs)
         return np.squeeze(preds[0]) # Remove batch dimension
 
+    def __calculate_iou(self, box1:tuple, box2:tuple) -> float:
+        x1, y1, w1, h1 = box1
+        x2, y2, w2, h2 = box2
+
+        x1_min, y1_min, x1_max, y1_max = x1, y1, x1 + w1, y1 + h1
+        x2_min, y2_min, x2_max, y2_max = x2, y2, x2 + w2, y2 + h2
+
+        inter_x_min = max(x1_min, x2_min)
+        inter_y_min = max(y1_min, y2_min)
+        inter_x_max = min(x1_max, x2_max)
+        inter_y_max = min(y1_max, y2_max)
+
+        inter_area = max(0, inter_x_max - inter_x_min) * max(0, inter_y_max - inter_y_min)
+        union_area = (w1 * h1) + (w2 * h2) - inter_area
+        return inter_area / union_area
+
+    def __non_maximum_suppression(self, boxes:list, scores:list) -> list:
+        indices = np.argsort(scores)[::-1]
+        selected_indices = []
+        while len(indices) > 0:
+            current_index = indices[0]
+            selected_indices.append(current_index)
+            
+            remaining_indices = indices[1:]
+            ious = np.array([self.__calculate_iou(boxes[current_index], boxes[i]) for i in remaining_indices])
+
+            indices = remaining_indices[ious < self.__iou_threshold]
+        return selected_indices
+
     def __wrap_detection(self, modelOutput:np.ndarray) -> list:
-        class_ids, boxes, scores = [], [], []
+        boxes, scores = [], []
 
         x_factor = self.__imgWidth / self.__inputWidth
         y_factor = self.__imgHeight / self.__inputHeight
@@ -62,47 +91,34 @@ class modelPredict:
         rows = modelOutput.shape[0]
         for r in range(rows):
             row = modelOutput[r]
-            
             if (row[4] > self.__conf):
-                classes_scores = row[5:]
-                class_id = np.argmax(classes_scores)
-                max_score = classes_scores[class_id]
-                
-                if (max_score > self.__conf):
-                    x, y, w, h = row[0].item(), row[1].item(), row[2].item(), row[3].item() # Get the bounding box coordinates
+                x, y, w, h = row[0].item(), row[1].item(), row[2].item(), row[3].item() # Get the bounding box coordinates
 
-                    # Scale the bounding box coordinates
-                    left = (x - 0.5 * w) * x_factor
-                    top = (y - 0.5 * h) * y_factor
-                    width, height = w*x_factor, h*y_factor
+                # Scale the bounding box coordinates
+                left = (x - 0.5 * w) * x_factor
+                top = (y - 0.5 * h) * y_factor
+                width, height = w*x_factor, h*y_factor
+                scores.append(row[4])
+                boxes.append(np.array([left, top, width, height]))
 
-                    class_ids.append(class_id)
-                    scores.append(max_score)
-                    boxes.append(np.array([left, top, width, height]))
+        indices = self.__non_maximum_suppression(boxes, scores)
+        return [boxes[i] for i in indices]
 
-        final_class_ids, final_boxes, final_scores = [], [], []
-        for i in range(len(boxes)):
-            final_class_ids.append(class_ids[i])
-            final_boxes.append(boxes[i])
-            final_scores.append(scores[i])
-        return final_class_ids, final_boxes, final_scores
-
-    def __start_detection(self, imgData:list):
+    def __start_detection(self, imgData:list) -> None:
         img = cv.imdecode(np.frombuffer(imgData, np.uint8), cv.IMREAD_COLOR)
         self.__imgHeight, self.__imgWidth = img.shape[:2]
 
         formatImg = self.__format_img(img)
         outs = self.__detect(formatImg)
-        class_ids, boxes, scores = self.__wrap_detection(outs)
+        boxes = self.__wrap_detection(outs)
 
-        if class_ids:
-            # Get the detected object with the highest score
-            index = np.argmax(scores)
+        if boxes:
             self.__person_pub.publish(True)
-
-            x, y, w, h = tuple(map(int, boxes[index]))
-            color = self.__colors[class_ids[index]]
-            cv.rectangle(img, (x, y), (x + w, y + h), color, 2) # Bounding box
+            for i in range(len(boxes)):
+                x, y, w, h = tuple(map(int, boxes[i]))
+                cv.rectangle(img, (x, y), (x + w, y + h), self.__color, 2) # Bounding box
+        cv.waitKey(1)
+        cv.imshow("Detection", img)
         return cv.imencode('.jpeg', img)[1].tobytes()
 
     def predict(self) -> None:
