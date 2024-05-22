@@ -11,7 +11,7 @@
     <include file="$(find rover_slam)/launch/rover_slam_odometry.launch"></include>
 
     <!-- Person classificator -->
-    <include file="$(find rover_vision)/launch/rover_detection.launch"></include>
+    <!-- <include file="$(find rover_vision)/launch/rover_detection.launch"></include> -->
 
     <!-- Arduino data receiver -->
     <!-- <include file="$(find rover_sensors)/launch/rover_arduino.launch"></include> -->

@@ -10,7 +10,7 @@ from std_msgs.msg import Bool, Int8
 from rover_slam.msg import Quadrants, Border
 
 # Rover packages
-from classes_movement import Rover_Navigation, Controller
+from classes_movement import Rover_Navigation, Controller, Kalman_Filter
 from classes_slam import Map_Sections, PRM, Dijkstra_Path
 from classes_sensors import Joystick
 
@@ -31,6 +31,9 @@ class StateMachine:
         self.__nav = Rover_Navigation()
         self.__control_class = Controller()
         self.__joystick = Joystick()
+
+        self.__filter = Kalman_Filter()
+        self.__mode = "Nav"
 
         self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
         self.__border_pub = rospy.Publisher("/curr_border", Border, queue_size = 10)
@@ -62,11 +65,13 @@ class StateMachine:
         self.__control_ready = msg.data
 
     def run(self):
+        self.__filter.predict(self.__mode)
         if self.__state == "EXPLORATION":
             if self.__map:
                 self.__nav.stop()
                 self.__move_to_control()
                 self.__state = "CONTROL"
+                self.__mode = "Control"
                 rospy.loginfo("State: CONTROL - Moving to a quadrant...")
             self.__exploration()
 
@@ -74,17 +79,21 @@ class StateMachine:
             if self.__manual_mode:
                 self.__nav.stop()
                 self.__state = "MANUAL"
+                self.__mode = "Manual"
                 rospy.loginfo("State: MANUAL - Use the joystick for moving the rover...")
             elif self.__control_ready:
                 self.__border_pub.publish(self.__curr_quadrant)
                 self.__state = "NAVIGATION"
+                self.__mode = "Nav"
                 rospy.loginfo("State: NAVIGATION - Navigating...")
             elif self.__person:
                 self.__state = "ALERT2"
+                self.__mode = ""
                 rospy.loginfo("State: ALERT2 - Person detected")
             elif self.__sound:
                 self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
+                self.__mode = ""
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
             self.__control()
 
@@ -92,25 +101,30 @@ class StateMachine:
             if self.__manual_mode:
                 self.__nav.stop()
                 self.__state = "MANUAL"
+                self.__mode = "Manual"
                 rospy.loginfo("State: MANUAL - Use the joystick for moving the rover...")
             elif self.__person:
                 self.__state = "ALERT2"
+                self.__mode = ""
                 rospy.loginfo("State: ALERT2 - Person detected")
             elif self.__sound:
                 self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
+                self.__mode = ""
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
             self.__navigation()
 
         elif self.__state == "MANUAL":
             if not self.__manual_mode:
                 self.__state = "NAVIGATION"
+                self.__mode = "Nav"
                 rospy.loginfo("State: NAVIGATION - Navigating...")
             self.__manual()
 
         elif self.__state == "ALERT1":
             if self.__person:
                 self.__state = "ALERT2"
+                self.__mode = ""
                 rospy.loginfo("State: ALERT2 - Person detected")
             self.__alert1()
         
@@ -161,6 +175,7 @@ class StateMachine:
             self.__select_quadrant()
             self.__planner.calculate_dijkstra(self.__curr_quadrant)
             self.__state = "CONTROL"
+            self.__mode = "Control"
             self.__nav.stop()
 
     def stop(self) -> None:

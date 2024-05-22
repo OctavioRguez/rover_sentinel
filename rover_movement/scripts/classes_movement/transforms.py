@@ -21,7 +21,7 @@ class Transform(Rover):
         self.__tf.child_frame_id = "base_link"
 
         self.__tf_broadcaster = TransformBroadcaster()
-        rospy.Subscriber("/odom/raw", Odometry, self.__callback_odom)
+        rospy.Subscriber("/odom/kalman", Odometry, self.__callback_odom)
 
     def __callback_odom(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x

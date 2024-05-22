@@ -43,7 +43,6 @@ class Controller(Rover):
         rospy.Subscriber("/path", Path, self.__path_callback)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
-        # rospy.wait_for_message("/sensor/distance", Float32, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
         q = msg.orientation

@@ -25,8 +25,8 @@ class Rover_Navigation(Rover):
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
 
         # Border limits
-        self.__x_min, self.__x_max = -10.0, 10.0
-        self.__y_min, self.__y_max = -10.0, 10.0
+        self.__x_min, self.__x_max = -100.0, 100.0
+        self.__y_min, self.__y_max = -100.0, 100.0
 
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
@@ -49,7 +49,7 @@ class Rover_Navigation(Rover):
         q = msg.orientation
         theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]        
         v, w = self.__avoid_obstacles(*self.__compute_lasers(msg.position.x, msg.position.y, theta))
-        w if w is not None else self.__w_past_kalman
+        w = self.__w_past_kalman if w is None else w
         self.__w_past_kalman = w
         vel = Twist()
         vel.linear.x = v
