@@ -31,7 +31,7 @@ class Transform(Rover):
 
     def update_transform(self) -> None:
         self.__tf.header.stamp = rospy.Time.now()
-        self.__tf.transform.translation.x = -self._states["x"]
-        self.__tf.transform.translation.y = -self._states["y"]
+        self.__tf.transform.translation.x = self._states["x"]
+        self.__tf.transform.translation.y = self._states["y"]
         self.__tf.transform.rotation = Quaternion(*quaternion_from_euler(0, 0, self._states["theta"]))
         self.__tf_broadcaster.sendTransform(self.__tf)

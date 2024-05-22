@@ -9,6 +9,5 @@
     </node>
 
     <!-- Transform -->
-    <node pkg="tf" type="static_transform_publisher" name="baselink_laser_tf" args="0 0 0 0 0 0 
-    base_link laser 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="baselink_laser_tf" args="0 0 0 3.1416 0 0 base_link laser 10"/>
 </launch>

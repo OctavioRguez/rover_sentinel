@@ -32,8 +32,8 @@ class Localization_SLAM():
     def update_pose(self):
         q = self.__map_tf.transform.rotation
         rotation = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
-        T1 = np.array([[np.cos(rotation), -np.sin(rotation), 0, -self.__map_tf.transform.translation.x],
-                       [np.sin(rotation), np.cos(rotation), 0, -self.__map_tf.transform.translation.y],
+        T1 = np.array([[np.cos(rotation), -np.sin(rotation), 0, self.__map_tf.transform.translation.x],
+                       [np.sin(rotation), np.cos(rotation), 0, self.__map_tf.transform.translation.y],
                        [0, 0, 1, 0],
                        [0, 0, 0, 1]])
         
@@ -47,7 +47,7 @@ class Localization_SLAM():
         T = np.dot(T1, T2)
         self.__odom.pose.pose.position.x = T[0, 3]
         self.__odom.pose.pose.position.y = T[1, 3]
-        self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, np.pi+np.arctan2(T[1, 0], T[0, 0])))
+        self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, np.arctan2(T[1, 0], T[0, 0])))
 
         self.__odom.header.stamp = rospy.Time.now()
         self.__odom_pub.publish(self.__odom)
