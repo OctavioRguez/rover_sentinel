@@ -29,7 +29,7 @@ class StateMachine:
         self.__last_quadrant_time = 0
 
         self.__nav = Rover_Navigation()
-        self.__control = Controller()
+        self.__control_class = Controller()
         self.__joystick = Joystick()
 
         self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
@@ -41,6 +41,7 @@ class StateMachine:
         rospy.Subscriber("/ready/map", Bool, self.__ready_map_callback)
         rospy.Subscriber("/ready/control", Bool, self.__ready_control_callback)
         rospy.Subscriber("/manual_mode", Bool, self.__manual_callback)
+        rospy.wait_for_message("/start", Bool, timeout = 360)
 
     def __borders_callback(self, msg:Quadrants) -> None:
         self.__quadrants = msg.borders
@@ -127,7 +128,7 @@ class StateMachine:
         self.__planner.calculate_dijkstra(self.__curr_quadrant)
     
     def __control(self) -> None:
-        self.__control.control()
+        self.__control_class.control()
 
     def __navigation(self) -> None:
         self.__nav.move()
@@ -137,7 +138,7 @@ class StateMachine:
         self.__joystick.manual_control()
 
     def __alert1(self) -> None:
-        self.__control.rotate()
+        self.__control_class.rotate()
 
     def __alert2(self) -> None:
         self.__nav.stop()
@@ -163,6 +164,7 @@ class StateMachine:
             self.__nav.stop()
 
     def stop(self) -> None:
+        self.__nav.stop()
         rospy.loginfo("Stoping the State Machine Node")
         rospy.signal_shutdown("Stoping the State Machine Node")
 

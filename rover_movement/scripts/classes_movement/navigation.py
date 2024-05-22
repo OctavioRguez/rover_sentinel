@@ -22,10 +22,11 @@ class Rover_Navigation(Rover):
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self._v, self._w = 0.2, 0.2
         self.__turning = True
+        self.__w_past, self.__w_past_kalman = 0.0, 0.0
 
         # Border limits
-        self.__x_min, self.__x_max = -1.0, 1.0
-        self.__y_min, self.__y_max = -1.0, 1.0
+        self.__x_min, self.__x_max = -10.0, 10.0
+        self.__y_min, self.__y_max = -10.0, 10.0
 
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
@@ -43,12 +44,13 @@ class Rover_Navigation(Rover):
         rospy.Subscriber("/curr_border", Border, self.__borders_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
-        rospy.wait_for_message("/curr_border", Border, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
         q = msg.orientation
         theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]        
         v, w = self.__avoid_obstacles(*self.__compute_lasers(msg.position.x, msg.position.y, theta))
+        w if w is not None else self.__w_past_kalman
+        self.__w_past_kalman = w
         vel = Twist()
         vel.linear.x = v
         vel.angular.z = w
@@ -74,6 +76,8 @@ class Rover_Navigation(Rover):
 
     def move(self) -> None:
         v, w = self.__avoid_obstacles(*self.__compute_lasers(self._states["x"], self._states["y"], self._states["theta"]))
+        w = self.__w_past if w is None else w
+        self.__w_past = w
         self.__set_vel(v, w)
         self.__vel_pub.publish(self.__velocity)
     
@@ -82,6 +86,7 @@ class Rover_Navigation(Rover):
         min_left = min(min(self.__left), left_laser)
         min_right = min(min(self.__right), right_laser)
 
+        v, w = 0.0, None
         # No obstacles in any direction
         if min_forward > self._safe_distance:
             self.__turning = True
@@ -90,20 +95,16 @@ class Rover_Navigation(Rover):
             self.__turning = False
             # Obstacles in all directions
             if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
-                v, w = 0.0, -self._w
-            # Obstacles in both left and right sides
-            elif abs(min_left - min_right) < self._safe_distance:
-                v, w = 0.0, self._w
+                w = -self._w
             # Obstacles at the left
             elif min_left < self._safe_distance:
-                v, w = 0.0, -self._w
+                w = -self._w
             # Obstacles at the right
             elif min_right < self._safe_distance:
-                v, w = 0.0, self._w
+                w =  self._w
             # Obstacles at the front
             else:
                 # Rotate to the direction with the higher distance
-                v = 0.0
                 w = -self._w if min_right >= min_left else self._w
         return v, w
 

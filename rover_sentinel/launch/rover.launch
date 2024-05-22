@@ -14,7 +14,7 @@
     <include file="$(find rover_vision)/launch/rover_detection.launch"></include>
 
     <!-- Arduino data receiver -->
-    <include file="$(find rover_sensors)/launch/rover_arduino.launch"></include>
+    <!-- <include file="$(find rover_sensors)/launch/rover_arduino.launch"></include> -->
 
     <!-- Nodes -->
     <node name="rover_state_machine" pkg="rover_sentinel" type="states.py" output="screen"/>

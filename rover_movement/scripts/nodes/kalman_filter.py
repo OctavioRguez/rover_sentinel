@@ -7,13 +7,13 @@ import rospy
 from classes_movement import Kalman_Filter
 
 if __name__ == "__main__":
-    rospy.init_node('Rover_Localization')
+    rospy.init_node('Rover_Kalman')
     rate = rospy.Rate(rospy.get_param('/node_rate/value', default = 30))
 
     filter = Kalman_Filter()
-    rospy.on_shutdown(Kalman_Filter.stop)
+    rospy.on_shutdown(filter.stop)
 
-    print("The Rover Localization is Running")
+    print("The Rover Kalman Localization is Running")
     try:    
         while not rospy.is_shutdown():
             if not filter._last_time:

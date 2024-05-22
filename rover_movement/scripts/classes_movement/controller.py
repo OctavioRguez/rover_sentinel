@@ -20,6 +20,7 @@ class Controller(Rover):
         self.__vmax, self.__wmax = 0.15, 0.3
         self.__kpd = 1.25
         self.__kpr = 7.0
+        self._safe_distance += 0.05
 
         self.__path = []
         self.__point = 0
@@ -42,8 +43,7 @@ class Controller(Rover):
         rospy.Subscriber("/path", Path, self.__path_callback)
         rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
-        rospy.wait_for_message("/sensor/distance", Float32, timeout = 30)
-        rospy.wait_for_message("/path", Path, timeout = 30)
+        # rospy.wait_for_message("/sensor/distance", Float32, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
         q = msg.orientation
@@ -80,7 +80,7 @@ class Controller(Rover):
     def __control_velocity(self, x:float, y:float, theta:float) -> tuple:
         v, w = 0.0, 0.0
         if self.__point >= len(self.__path):
-            return
+            return v, w
         
         dx = self.__path[self.__point].pose.position.x - x
         dy = self.__path[self.__point].pose.position.y - y

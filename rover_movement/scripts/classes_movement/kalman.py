@@ -24,9 +24,9 @@ class Kalman_Filter(Rover):
                             [0, 1, 0],
                             [0, 0, 1]])
         self.__P = self.__Q
-        self.__R = np.array([[1, 0, 0],
-                            [0, 1, 0],
-                            [0, 0, 1]])
+        self.__R = np.array([[0.1, 0, 0],
+                            [0, 0.1, 0],
+                            [0, 0, 0.1]])
 
         self.__odom = Odometry()
         self.__odom.header.frame_id = "map"
@@ -63,16 +63,14 @@ class Kalman_Filter(Rover):
         self.__pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self.__x[2]))
         if mode == "Control":
             self.__control_pub.publish(self.__pose)
-            rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 30)
         elif mode == "Nav":
             self.__nav_pub.publish(self.__pose)
-            rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 30)
         else:
-            rospy.wait_for_message("/cmd_vel", Twist, timeout = 30)
             self._v, self._w = self.__cmd_vel.linear.x, self.__cmd_vel.angular.z
-        x_dot = [self._v*np.cos(self.__x[2]), self._v*np.sin(self.__x[2]), self._w]
+        x_dot = np.array([self._v*np.cos(self.__x[2]), self._v*np.sin(self.__x[2]), self._w])
         self.__x = self.__x + x_dot*dt
         self.__P = self.__P + self.__Q
+        self.__x[2] = self._wrap_to_Pi(self.__x[2])
 
     def __correct(self) -> None:
         self.__z = np.array([self._states["x"], self._states["y"], self._states["theta"]])
