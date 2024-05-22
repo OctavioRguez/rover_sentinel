@@ -2,6 +2,7 @@
 
 # Python libraries
 import rospy
+import os, datetime
 import cv2 as cv
 import numpy as np
 import onnxruntime as ort
@@ -15,8 +16,11 @@ class modelPredict:
     def __init__(self):
         self.__model = rospy.get_param("/classification/model/path", default = "best.onnx")
         self.__conf = rospy.get_param("/classification/confidence/value", default = 0.5)
+
         self.__color = np.random.uniform(0, 255, 3)
         self.__iou_threshold = 0.5
+        self.__folder = "~/detected_persons/"
+        os.mkdir(self.__folder) if not os.path.exists(self.__folder) else None
 
         self.__build_model(rospy.get_param("/classification/isCuda/value", default = False))
         self.__img = None
@@ -114,10 +118,12 @@ class modelPredict:
 
         if boxes:
             self.__person_pub.publish(True)
+            cv.imsave(f"{self.__folder}{datetime.datetime.now().strftime("%m/%d/%Y-%H:%M:%S")}.jpeg", img)
+
             for i in range(len(boxes)):
                 x, y, w, h = tuple(map(int, boxes[i]))
                 cv.rectangle(img, (x, y), (x + w, y + h), self.__color, 2) # Bounding box
-        return cv.imencode('.jpeg', img)[1].tobytes()
+        return cv.imencode(".jpeg", img)[1].tobytes()
 
     def predict(self) -> None:
         img = self.__start_detection(self.__img)

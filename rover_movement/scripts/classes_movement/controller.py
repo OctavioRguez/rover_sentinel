@@ -18,9 +18,10 @@ class Controller(Rover):
     def __init__(self) -> None:
         Rover.__init__(self)
         self.__vmax, self.__wmax = 0.15, 0.3
-        self.__kpd = 1.25
-        self.__kpr = 7.0
-        self._safe_distance += 0.05
+        self.__kpr = 2.0
+
+        self.__enable_control = True
+        self.__w_past, self.__w_past_kalman = 0.0, 0.0
 
         self.__path = []
         self.__point = 0
@@ -28,10 +29,10 @@ class Controller(Rover):
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
         self.__dist = float("inf")
-        self.__turn_right = False
         self.__turning = True
 
         self.__vel = Twist()
+        self.__vel_kalman = Twist()
 
         self.__kalman_pub = rospy.Publisher("/kalman_predict/vel", Twist, queue_size = 10)
         rospy.Subscriber("/kalman_predict/pose/controller", Pose, self.__kalman_callback)
@@ -45,13 +46,17 @@ class Controller(Rover):
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
-        q = msg.orientation
-        theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]        
-        v, w = self.__control_velocity(msg.position.x, msg.position.y, theta)
-        vel = Twist()
-        vel.linear.x = v
-        vel.angular.z = w
-        self.__kalman_pub.publish(vel)
+        if self.__enable_control:  
+            q = msg.orientation
+            theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]   
+            v, w = self.__control_velocity(msg.position.x, msg.position.y, theta)
+        else:
+            v, w = self.__reactive_navegation()
+            w = self.__w_past_kalman if w is None else w
+            self.__w_past_kalman = w
+        self.__vel_kalman.linear.x = v
+        self.__vel_kalman.angular.z = w
+        self.__kalman_pub.publish(self.__vel_kalman)
 
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
@@ -60,10 +65,10 @@ class Controller(Rover):
         self._states["theta"] = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
 
     def __lidar_callback(self, msg:LaserScan) -> None:
-        self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
-        self.__left = msg.ranges[144:430]
-        self.__right = msg.ranges[717:1004]
-    
+        self.__forward = msg.ranges[0:100] + msg.ranges[1050:1147]
+        self.__left = msg.ranges[100:430]
+        self.__right = msg.ranges[717:1050]
+
     def __distance_callback(self, msg:Float32) -> None:
         self.__dist = msg.data
 
@@ -71,7 +76,12 @@ class Controller(Rover):
         self.__path = msg.poses
 
     def control(self) -> None:
-        v, w = self.__control_velocity(self._states["x"], self._states["y"], self._states["theta"])
+        if self.__enable_control:
+            v, w = self.__control_velocity(self._states["x"], self._states["y"], self._states["theta"])
+        else:
+            v, w = self.__reactive_navegation()
+            w = self.__w_past if w is None else w
+            self.__w_past = w
         self.__vel.linear.x = v
         self.__vel.angular.z = w
         self.__vel_pub.publish(self.__vel)
@@ -94,7 +104,7 @@ class Controller(Rover):
         v, w = self.__avoid(v, w)
         return v, w
 
-    def __avoid(self, v:float, w:float) -> None:
+    def __avoid(self, v:float, w:float) -> tuple:
         # Minimum distance from obstacles at each direction
         min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
         if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
@@ -104,18 +114,34 @@ class Controller(Rover):
         elif min_right < self._safe_distance:
             w += self.__kpr*(self._safe_distance - min_right)
         elif min_forward < self._safe_distance:
-            v -= self.__kpd*(self._safe_distance - min_forward)
-            w += self.__kpr*self.__obstacle_forward(min_forward, min_left, min_right)
-        else:
-            self.__turning = True
+            self.__enable_control = False
         return v, self.__wmax*np.tanh(w / self.__wmax)
 
-    def __obstacle_forward(self, forward:float, left:float, right:float) -> float:
-        if self.__turning:
-            self.__turn_right = True if right >= left else False
+    def __reactive_navegation(self) -> tuple:
+        min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
+        v, w = 0.0, None
+        # No obstacles in any direction
+        if all(dist > self._safe_distance for dist in [min_forward, min_left, min_right]):
+            self.__enable_control = True
+        elif min_forward > self._safe_distance:
+            self.__turning = True
+            v, w = self._v, 0.0
+        elif self.__turning:
             self.__turning = False
-        # Rotate to the direction with the higher distance
-        return -(self._safe_distance - forward) if self.__turn_right else (self._safe_distance - forward)
+            # Obstacles in all directions
+            if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
+                w = -self._w
+            # Obstacles at the left
+            elif min_left < self._safe_distance:
+                w = -self._w
+            # Obstacles at the right
+            elif min_right < self._safe_distance:
+                w =  self._w
+            # Obstacles at the front
+            else:
+                # Rotate to the direction with the higher distance
+                w = -self._w if min_right >= min_left else self._w
+        return v, w
 
     def rotate(self) -> None:
         self.__vel.linear.x = 0.0

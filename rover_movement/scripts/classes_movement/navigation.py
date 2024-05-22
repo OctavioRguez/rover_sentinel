@@ -33,6 +33,7 @@ class Rover_Navigation(Rover):
         self.__dist = float("inf")
 
         self.__velocity = Twist()
+        self.__vel_kalman = Twist()
 
         self.__kalman_pub = rospy.Publisher("/kalman_predict/vel", Twist, queue_size = 10)
         rospy.Subscriber("/kalman_predict/pose/navigation", Pose, self.__kalman_callback)
@@ -51,10 +52,9 @@ class Rover_Navigation(Rover):
         v, w = self.__avoid_obstacles(*self.__compute_lasers(msg.position.x, msg.position.y, theta))
         w = self.__w_past_kalman if w is None else w
         self.__w_past_kalman = w
-        vel = Twist()
-        vel.linear.x = v
-        vel.angular.z = w
-        self.__kalman_pub.publish(vel)
+        self.__vel_kalman.linear.x = v
+        self.__vel_kalman.angular.z = w
+        self.__kalman_pub.publish(self.__vel_kalman)
 
     def __lidar_callback(self, msg:LaserScan) -> None:
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
