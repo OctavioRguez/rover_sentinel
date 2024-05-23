@@ -12,12 +12,25 @@ class Arduino:
         self.__addr = 0x12
         self.__bus = smbus.SMBus(1) # I2C
 
+        self.__time = rospy.Time.now().to_sec()
+        self.__min = float("inf")
+        self.__max = 0
+
         self.__sound_pub = rospy.Publisher("/detected/sound", Bool, queue_size = 10)
         self.__distance_pub = rospy.Publisher("/sensor/distance", Float32 , queue_size = 10)
         rospy.Subscriber("/buzzer", Int8, self.__buzzer_callback)
 
     def __buzzer_callback(self, msg:Int8) -> None:
         self.send_buzzer_data(msg.data)
+    
+    def __analyze_sound(self, sound:int) -> None:
+        if rospy.Time.now().to_sec() - self.__time < 15:
+            # Calibrate sound sensor
+            self.__min = min(self.__min, sound)
+            self.__max = max(self.__max, sound)
+        elif (sound < self.__min or sound >= self.__max):
+            self.send_buzzer_data(1)
+            self.__sound_pub.publish(True)
 
     def send_buzzer_data(self, data:int) -> None:
         self.__bus.write_byte(self.__addr, data)
@@ -28,11 +41,10 @@ class Arduino:
 
         # Convert bytes in values
         sound = (data[0] << 8) + data[1]
+        self.__analyze_sound(sound)
+
         distance = (data[2] << 8) + data[3] % 1201
         self.__distance_pub.publish(distance/10)
-        if (sound <= 670 or sound >= 685):
-            self.send_buzzer_data(1)
-            self.__sound_pub.publish(True)
 
     def stop(self) -> None:
         rospy.loginfo("Stopping Arduino Master")

@@ -34,7 +34,7 @@ class Dijkstra_Path:
             try:
                 while True:
                     goal_node = list(self.__graph.nodes())[np.random.randint(0, len(self.__graph.nodes()))]
-                    if border.upper.x <= goal_node[0] <= border.lower.x and border.upper.y <= goal_node[1] <= border.lower.y:
+                    if border is None or (border.upper.x <= goal_node[0] <= border.lower.x and border.upper.y <= goal_node[1] <= border.lower.y):
                         break
                 path = nx.dijkstra_path(self.__graph, start_node, goal_node)
                 break

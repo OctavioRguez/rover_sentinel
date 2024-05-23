@@ -41,6 +41,7 @@ class Joystick:
     
     def __activate_manual(self) -> None:
         if self.__last_val == 0 and self.__button == 1:
+            self.stop()
             self.__manual = not self.__manual
             self.__nav_pub.publish(False) if self.__manual else self.__nav_pub.publish(True)
         self.__last_val = self.__button
