@@ -20,6 +20,7 @@ class Arduino:
         self.__sound_pub = rospy.Publisher("/detected/sound", Bool, queue_size = 10)
         self.__distance_pub = rospy.Publisher("/sensor/distance", Float32 , queue_size = 10)
         rospy.Subscriber("/buzzer", Int8, self.__buzzer_callback)
+        rospy.loginfo(f"Calibrating sound sensor.")
 
     def __buzzer_callback(self, msg:Int8) -> None:
         self.send_buzzer_data(msg.data)
@@ -33,7 +34,7 @@ class Arduino:
             if self.__message:
                 rospy.loginfo(f"Finished calibration.\nMin: {self.__min}, Max: {self.__max}")
                 self.__message = False
-            self.send_buzzer_data(1)
+            # self.send_buzzer_data(1)
             self.__sound_pub.publish(True)
 
     def send_buzzer_data(self, data:int) -> None:
@@ -48,7 +49,7 @@ class Arduino:
         self.__analyze_sound(sound)
 
         distance = (data[2] << 8) + data[3]
-        distance = 200 if distance > 1000 else distance
+        distance = 200 if distance > 300 else distance
         self.__distance_pub.publish(distance/100)
 
     def stop(self) -> None:
