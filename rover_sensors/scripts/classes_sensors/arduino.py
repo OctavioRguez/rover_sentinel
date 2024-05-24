@@ -11,6 +11,7 @@ class Arduino:
     def __init__(self) -> None:
         self.__addr = 0x12
         self.__bus = smbus.SMBus(1) # I2C
+        self.__message = True
 
         self.__time = rospy.Time.now().to_sec()
         self.__min = float("inf")
@@ -29,6 +30,9 @@ class Arduino:
             self.__min = min(self.__min, sound)
             self.__max = max(self.__max, sound)
         elif (sound < self.__min or sound >= self.__max):
+            if self.__message:
+                rospy.loginfo(f"Finished calibration.\nMin: {self.__min}, Max: {self.__max}")
+                self.__message = False
             self.send_buzzer_data(1)
             self.__sound_pub.publish(True)
 
@@ -43,8 +47,9 @@ class Arduino:
         sound = (data[0] << 8) + data[1]
         self.__analyze_sound(sound)
 
-        distance = (data[2] << 8) + data[3] % 1201
-        self.__distance_pub.publish(distance/10)
+        distance = (data[2] << 8) + data[3]
+        distance = 200 if distance > 1000 else distance
+        self.__distance_pub.publish(distance/100)
 
     def stop(self) -> None:
         rospy.loginfo("Stopping Arduino Master")

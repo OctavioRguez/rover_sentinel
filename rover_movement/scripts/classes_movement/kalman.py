@@ -24,9 +24,9 @@ class Kalman_Filter(Rover):
                             [0, 1, 0],
                             [0, 0, 1]])
         self.__P = self.__Q
-        self.__R = np.array([[0.1, 0, 0],
-                            [0, 0.1, 0],
-                            [0, 0, 0.1]])
+        self.__R = np.array([[0, 0, 0],
+                            [0, 0, 0],
+                            [0, 0, 0]])
 
         self.__odom = Odometry()
         self.__odom.header.frame_id = "map"

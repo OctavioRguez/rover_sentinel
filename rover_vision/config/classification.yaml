@@ -8,7 +8,7 @@ classification:
     path: "/home/puzzlebot/ws/src/rover_sentinel/rover_vision/model/best.onnx"
   confidence:
     name: Confidence threshold
-    value: 0.65
+    value: 0.75
   isCuda:
     name: Enable cuda (True or False)
     value: True

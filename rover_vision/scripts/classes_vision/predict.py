@@ -55,7 +55,7 @@ class modelPredict:
     def __detect(self, img) -> np.ndarray:
         inputs = {self.__session.get_inputs()[0].name: img} # Prepare the input for the model
         preds = self.__session.run(None, inputs)
-        return np.squeeze(preds[0]) # Remove batch dimension
+        return np.transpose(np.squeeze(preds[0])) # Remove batch dimension
 
     def __calculate_iou(self, box1:tuple, box2:tuple) -> float:
         x1, y1, w1, h1 = box1
@@ -121,7 +121,7 @@ class modelPredict:
             for i in range(len(boxes)):
                 x, y, w, h = tuple(map(int, boxes[i]))
                 cv.rectangle(img, (x, y), (x + w, y + h), self.__color, 2) # Bounding box
-            cv.imwrite(self.__folder + datetime.datetime.now().strftime("%m_%d_%Y-%H:%M:%S") + ".jpeg", img)
+            # cv.imwrite(self.__folder + datetime.datetime.now().strftime("%m_%d_%Y-%H:%M:%S") + ".jpeg", img)
         return cv.imencode(".jpeg", img)[1].tobytes()
 
     def predict(self) -> None:

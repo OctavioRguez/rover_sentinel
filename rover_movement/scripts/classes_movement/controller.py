@@ -18,7 +18,7 @@ class Controller(Rover):
     def __init__(self) -> None:
         Rover.__init__(self)
         self.__vmax, self.__wmax = 0.15, 0.3
-        self.__kpr = 2.0
+        self.__kpr = 2.5
 
         self.__enable_control = True
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
@@ -65,9 +65,9 @@ class Controller(Rover):
         self._states["theta"] = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
 
     def __lidar_callback(self, msg:LaserScan) -> None:
-        self.__forward = msg.ranges[0:100] + msg.ranges[1050:1147]
-        self.__left = msg.ranges[100:430]
-        self.__right = msg.ranges[717:1050]
+        self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
+        self.__left = msg.ranges[144:430]
+        self.__right = msg.ranges[717:1004]
 
     def __distance_callback(self, msg:Float32) -> None:
         self.__dist = msg.data
@@ -106,15 +106,18 @@ class Controller(Rover):
 
     def __avoid(self, v:float, w:float) -> tuple:
         # Minimum distance from obstacles at each direction
+        self.__left = self.__left + self.__forward[50:144]
+        self.__right = self.__right + self.__forward[144:154]
+        self.__forward = self.__forward[:50] + self.__forward[154:]
         min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
         if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
             v, w = 0.0, self.__wmax
+        elif min_forward < self._safe_distance:
+            self.__enable_control = False
         elif min_left < self._safe_distance:
             w -= self.__kpr*(self._safe_distance - min_left)
         elif min_right < self._safe_distance:
             w += self.__kpr*(self._safe_distance - min_right)
-        elif min_forward < self._safe_distance:
-            self.__enable_control = False
         return v, self.__wmax*np.tanh(w / self.__wmax)
 
     def __reactive_navegation(self) -> tuple:
@@ -125,22 +128,22 @@ class Controller(Rover):
             self.__enable_control = True
         elif min_forward > self._safe_distance:
             self.__turning = True
-            v, w = self._v, 0.0
+            v, w = self.__vmax, 0.0
         elif self.__turning:
             self.__turning = False
             # Obstacles in all directions
             if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
-                w = -self._w
+                w = -self.__wmax
             # Obstacles at the left
             elif min_left < self._safe_distance:
-                w = -self._w
+                w = -self.__wmax
             # Obstacles at the right
             elif min_right < self._safe_distance:
-                w =  self._w
+                w =  self.__wmax
             # Obstacles at the front
             else:
                 # Rotate to the direction with the higher distance
-                w = -self._w if min_right >= min_left else self._w
+                w = -self.__wmax if min_right >= min_left else self.__wmax
         return v, w
 
     def rotate(self) -> None:
