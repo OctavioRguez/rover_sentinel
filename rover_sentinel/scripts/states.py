@@ -2,8 +2,7 @@
 
 # Python libraries
 import rospy
-import random
-import time
+import numpy as np
 
 # ROS messages
 from std_msgs.msg import Bool, Int8
@@ -65,7 +64,7 @@ class StateMachine:
         self.__control_ready = msg.data
 
     def run(self):
-        self.__filter.predict(self.__mode)
+        self.__filter.apply_filter(self.__mode)
         if self.__state == "EXPLORATION":
             if self.__map:
                 self.__nav.stop()
@@ -138,9 +137,15 @@ class StateMachine:
         Map_Sections().split(2, 2)
         graph, shape = PRM().calculate_prm()
         self.__planner = Dijkstra_Path(graph, shape)
-        self.__select_quadrant()
-        self.__planner.calculate_dijkstra(self.__curr_quadrant)
-    
+        while True:
+            self.__select_quadrant()
+            path = self.__planner.calculate_dijkstra(self.__curr_quadrant)
+            point = np.array(path[-1]) * 40 + np.array([shape[0]/2, shape[1]/2])
+            if (self.__curr_quadrant.upper.x <= point[0] <= self.__curr_quadrant.lower.x 
+                and self.__curr_quadrant.upper.y <= point[1] <= self.__curr_quadrant.lower.y):
+                break
+            rospy.loginfo("Unable to create a path to the current quadrant, selecting another quadrant...")
+
     def __control(self) -> None:
         self.__control_class.control()
 
@@ -160,18 +165,19 @@ class StateMachine:
 
     def __select_quadrant(self) -> None:
         num_of_quadrants = len(self.__quadrants)
+        if len(self.__quadrants) == len(self.__visied_quadrants):
+            self.__visied_quadrants = []
         while True:
-            self.__curr_quadrant = self.__quadrants[random.randint(0, num_of_quadrants - 1)]
+            self.__curr_quadrant = self.__quadrants[np.random.randint(0, num_of_quadrants - 1)]
             if not self.__curr_quadrant in self.__visied_quadrants:
                 self.__visied_quadrants.append(self.__curr_quadrant)
-                self.__last_quadrant_time = time.time()
+                self.__last_quadrant_time = rospy.Time.now().to_sec()
+                break
 
     def __check_time(self) -> None:
-        current_time = time.time()
+        current_time = rospy.Time.now().to_sec()
         elapsed_time = current_time - self.__last_quadrant_time
         if elapsed_time >= 30:
-            if len(self.__quadrants) == len(self.__visied_quadrants):
-                self.__visied_quadrants = []
             self.__select_quadrant()
             self.__planner.calculate_dijkstra(self.__curr_quadrant)
             self.__state = "CONTROL"

@@ -7,7 +7,7 @@
     <include file="$(find rover_movement)/launch/rover_odometry.launch"></include>
 
     <!-- SLAM -->
-    <include file="$(find rover_slam)/launch/gmapping_slam.launch"></include>
+    <node name="gmapping" pkg="rover_slam" type="gmapping.sh"/>
     <include file="$(find rover_slam)/launch/rover_slam_odometry.launch"></include>
 
     <!-- Person classificator -->

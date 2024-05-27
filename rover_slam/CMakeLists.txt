@@ -169,6 +169,7 @@ catkin_install_python(PROGRAMS
   scripts/nodes/split_map.py
   scripts/nodes/planning.py
   scripts/nodes/slam_position.py
+  scripts/nodes/gmapping.sh
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

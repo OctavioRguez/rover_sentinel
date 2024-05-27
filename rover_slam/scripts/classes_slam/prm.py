@@ -24,8 +24,8 @@ class PRM:
         return np.linalg.norm(np.array(p1) - np.array(p2))
 
     def __widen_obstacles(self) -> None:
-        kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
-        self.__map = cv.morphologyEx(self.__map, cv.MORPH_OPEN, kernel, iterations = 1)
+        # kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
+        # self.__map = cv.morphologyEx(self.__map, cv.MORPH_OPEN, kernel, iterations = 1)
         kernel = cv.getStructuringElement(cv.MORPH_RECT, (self.__safe_dist, self.__safe_dist))
         self.__map = cv.morphologyEx(self.__map, cv.MORPH_DILATE, kernel, iterations = 2)
 

@@ -20,7 +20,7 @@ class Controller(Rover):
         self.__vmax, self.__wmax = 0.15, 0.3
         self.__kpr = 2.5
 
-        self.__enable_control = True
+        self.__enable = True
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
 
         self.__path = []
@@ -30,6 +30,7 @@ class Controller(Rover):
         self.__forward, self.__left, self.__right = [], [], []
         self.__dist = float("inf")
         self.__turning = True
+        self.__turning_kalman = True
 
         self.__vel = Twist()
         self.__vel_kalman = Twist()
@@ -46,12 +47,12 @@ class Controller(Rover):
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
-        if self.__enable_control:  
+        if self.__enable:  
             q = msg.orientation
             theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]   
             v, w = self.__control_velocity(msg.position.x, msg.position.y, theta)
         else:
-            v, w = self.__reactive_navegation()
+            v, w, self.__turning_kalman = self.__reactive_navegation(self.__turning_kalman)
             w = self.__w_past_kalman if w is None else w
             self.__w_past_kalman = w
         self.__vel_kalman.linear.x = v
@@ -76,10 +77,10 @@ class Controller(Rover):
         self.__path = msg.poses
 
     def control(self) -> None:
-        if self.__enable_control:
+        if self.__enable:
             v, w = self.__control_velocity(self._states["x"], self._states["y"], self._states["theta"])
         else:
-            v, w = self.__reactive_navegation()
+            v, w, self.__turning = self.__reactive_navegation(self.__turning)
             w = self.__w_past if w is None else w
             self.__w_past = w
         self.__vel.linear.x = v
@@ -120,17 +121,17 @@ class Controller(Rover):
             w += self.__kpr*(self._safe_distance - min_right)
         return v, self.__wmax*np.tanh(w / self.__wmax)
 
-    def __reactive_navegation(self) -> tuple:
+    def __reactive_navegation(self, turning:bool) -> tuple:
         min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
         v, w = 0.0, None
         # No obstacles in any direction
         if all(dist > self._safe_distance for dist in [min_forward, min_left, min_right]):
-            self.__enable_control = True
+            self.__enable = True
         elif min_forward > self._safe_distance:
-            self.__turning = True
+            turning = True
             v, w = self.__vmax, 0.0
-        elif self.__turning:
-            self.__turning = False
+        elif turning:
+            turning = False
             # Obstacles in all directions
             if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
                 w = -self.__wmax
@@ -144,7 +145,7 @@ class Controller(Rover):
             else:
                 # Rotate to the direction with the higher distance
                 w = -self.__wmax if min_right >= min_left else self.__wmax
-        return v, w
+        return v, w, turning
 
     def rotate(self) -> None:
         self.__vel.linear.x = 0.0

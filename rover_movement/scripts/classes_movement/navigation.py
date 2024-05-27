@@ -22,6 +22,7 @@ class Rover_Navigation(Rover):
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self._v, self._w = 0.2, 0.2
         self.__turning = True
+        self.__turning_kalman = True
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
 
         # Border limits
@@ -48,8 +49,8 @@ class Rover_Navigation(Rover):
 
     def __kalman_callback(self, msg:Pose) -> None:
         q = msg.orientation
-        theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]        
-        v, w = self.__avoid_obstacles(*self.__compute_lasers(msg.position.x, msg.position.y, theta))
+        theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
+        v, w, self.__turning_kalman = self.__avoid_obstacles(*self.__compute_lasers(msg.position.x, msg.position.y, theta), self.__turning_kalman)
         w = self.__w_past_kalman if w is None else w
         self.__w_past_kalman = w
         self.__vel_kalman.linear.x = v
@@ -75,13 +76,13 @@ class Rover_Navigation(Rover):
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
 
     def move(self) -> None:
-        v, w = self.__avoid_obstacles(*self.__compute_lasers(self._states["x"], self._states["y"], self._states["theta"]))
+        v, w, self.__turning = self.__avoid_obstacles(*self.__compute_lasers(self._states["x"], self._states["y"], self._states["theta"]), self.__turning)
         w = self.__w_past if w is None else w
         self.__w_past = w
         self.__set_vel(v, w)
         self.__vel_pub.publish(self.__velocity)
     
-    def __avoid_obstacles(self, front_laser, left_laser, right_laser) -> tuple:
+    def __avoid_obstacles(self, front_laser, left_laser, right_laser, turning) -> tuple:
         min_forward = min(min(self.__forward), front_laser, self.__dist)
         min_left = min(min(self.__left), left_laser)
         min_right = min(min(self.__right), right_laser)
@@ -89,10 +90,10 @@ class Rover_Navigation(Rover):
         v, w = 0.0, None
         # No obstacles in any direction
         if min_forward > self._safe_distance:
-            self.__turning = True
+            turning = True
             v, w = self._v, 0.0
-        elif self.__turning:
-            self.__turning = False
+        elif turning:
+            turning = False
             # Obstacles in all directions
             if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
                 w = -self._w
@@ -106,7 +107,7 @@ class Rover_Navigation(Rover):
             else:
                 # Rotate to the direction with the higher distance
                 w = -self._w if min_right >= min_left else self._w
-        return v, w
+        return v, w, turning
 
     def __compute_lasers(self, x:float, y:float, theta:float) -> tuple:
         rover_point = np.array([x, y])
