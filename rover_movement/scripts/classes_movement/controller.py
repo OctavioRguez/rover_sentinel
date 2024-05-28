@@ -20,7 +20,8 @@ class Controller(Rover):
         self.__vmax, self.__wmax = 0.15, 0.3
         self.__kpr = 2.5
 
-        self.__enable = True
+        self.__enable = False
+        self.__reactive = False
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
 
         self.__path = []
@@ -40,13 +41,15 @@ class Controller(Rover):
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         self.__ready_pub = rospy.Publisher("/ready/control", Bool, queue_size = 10)
+        rospy.Subscriber("/enable/control", Bool, self.__enable_callback)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
+        rospy.Subscriber("/path", Path, self.__path__callback)
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
-        if self.__enable:  
+        if not self.__reactive:
             q = msg.orientation
             theta = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]   
             v, w = self.__control_velocity(msg.position.x, msg.position.y, theta)
@@ -57,6 +60,9 @@ class Controller(Rover):
         self.__vel_kalman.linear.x = v
         self.__vel_kalman.angular.z = w
         self.__kalman_pub.publish(self.__vel_kalman)
+
+    def __enable_callback(self, msg:Bool) -> None:
+        self.__enable = msg.data
 
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
@@ -72,20 +78,21 @@ class Controller(Rover):
     def __distance_callback(self, msg:Float32) -> None:
         self.__dist = msg.data
 
-    def set_path(self, path:Path) -> None:
-        self.__path = path
+    def __path__callback(self, msg:Path) -> None:
+        self.__path = msg.poses
         self.__point = 0
 
     def control(self) -> None:
         if self.__enable:
-            v, w = self.__control_velocity(self._states["x"], self._states["y"], self._states["theta"])
-        else:
-            v, w, self.__turning = self.__reactive_navegation(self.__turning)
-            w = self.__w_past if w is None else w
-            self.__w_past = w
-        self.__vel.linear.x = v
-        self.__vel.angular.z = w
-        self.__vel_pub.publish(self.__vel)
+            if not self.__reactive:
+                v, w = self.__control_velocity(self._states["x"], self._states["y"], self._states["theta"])
+            else:
+                v, w, self.__turning = self.__reactive_navegation(self.__turning)
+                w = self.__w_past if w is None else w
+                self.__w_past = w
+            self.__vel.linear.x = v
+            self.__vel.angular.z = w
+            self.__vel_pub.publish(self.__vel)
 
     def __control_velocity(self, x:float, y:float, theta:float) -> tuple:
         v, w = 0.0, 0.0
@@ -115,7 +122,7 @@ class Controller(Rover):
         if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
             v, w = 0.0, self.__wmax
         elif min_forward < self._safe_distance:
-            self.__enable_control = False
+            self.__reactive = True
         elif min_left < self._safe_distance:
             w -= self.__kpr*(self._safe_distance - min_left)
         elif min_right < self._safe_distance:
@@ -127,7 +134,7 @@ class Controller(Rover):
         v, w = 0.0, None
         # No obstacles in any direction
         if all(dist > self._safe_distance for dist in [min_forward, min_left, min_right]):
-            self.__enable = True
+            self.__reactive = False
         elif min_forward > self._safe_distance:
             turning = True
             v, w = self.__vmax, 0.0

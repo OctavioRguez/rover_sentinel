@@ -6,7 +6,7 @@ import numpy as np
 from tf.transformations import euler_from_quaternion
 
 # ROS messages
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 from geometry_msgs.msg import Twist, Pose
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
@@ -21,6 +21,7 @@ class Rover_Navigation(Rover):
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self._v, self._w = 0.2, 0.2
+        self.__enable = False
         self.__turning = True
         self.__turning_kalman = True
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
@@ -40,6 +41,7 @@ class Rover_Navigation(Rover):
         rospy.Subscriber("/kalman_predict/pose/navigation", Pose, self.__kalman_callback)
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
+        rospy.Subscriber("/enable/navegation", Bool, self.__enable_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
@@ -55,6 +57,9 @@ class Rover_Navigation(Rover):
         self.__vel_kalman.linear.x = v
         self.__vel_kalman.angular.z = w
         self.__kalman_pub.publish(self.__vel_kalman)
+
+    def __enable_callback(self, msg:Bool) -> None:
+        self.__enable = msg.data
 
     def __lidar_callback(self, msg:LaserScan) -> None:
         self.__forward = msg.ranges[0:144] + msg.ranges[1004:1147]
@@ -75,11 +80,12 @@ class Rover_Navigation(Rover):
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
 
     def move(self) -> None:
-        v, w, self.__turning = self.__avoid_obstacles(*self.__compute_lasers(self._states["x"], self._states["y"], self._states["theta"]), self.__turning)
-        w = self.__w_past if w is None else w
-        self.__w_past = w
-        self.__set_vel(v, w)
-        self.__vel_pub.publish(self.__velocity)
+        if self.__enable:
+            v, w, self.__turning = self.__avoid_obstacles(*self.__compute_lasers(self._states["x"], self._states["y"], self._states["theta"]), self.__turning)
+            w = self.__w_past if w is None else w
+            self.__w_past = w
+            self.__set_vel(v, w)
+            self.__vel_pub.publish(self.__velocity)
     
     def __avoid_obstacles(self, front_laser, left_laser, right_laser, turning) -> tuple:
         min_forward = min(min(self.__forward), front_laser, self.__dist)

@@ -13,9 +13,15 @@
     <!-- Person classificator -->
     <!-- <include file="$(find rover_vision)/launch/rover_detection.launch"></include> -->
 
-    <!-- Arduino data receiver -->
+    <!-- Sensors data -->
     <include file="$(find rover_sensors)/launch/rover_arduino.launch"></include>
+    <node name="joystick_manual" pkg="rover_sensors" type="manual_control.py" output="screen"/>
 
-    <!-- Nodes -->
+    <!-- Movement Nodes -->
+    <node name="controller" pkg="rover_movement" type="controller.py" output="screen"/>
+    <node name="navigation" pkg="rover_movement" type="navigation.py" output="screen"/>
+    <node name="kalman_filter" pkg="rover_movement" type="kalman_filter.py" output="screen"/>
+
+    <!-- States machine -->
     <node name="rover_state_machine" pkg="rover_sentinel" type="states.py" output="screen"/>
 </launch>

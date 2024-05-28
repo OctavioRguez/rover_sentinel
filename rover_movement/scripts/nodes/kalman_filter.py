@@ -19,7 +19,7 @@ if __name__ == "__main__":
             if not filter._last_time:
                 filter._last_time = rospy.Time.now().to_sec()
             else:
-                filter.apply_filter("Manual")
+                filter.apply_filter()
             rate.sleep()
     except rospy.ROSInterruptException:
         pass

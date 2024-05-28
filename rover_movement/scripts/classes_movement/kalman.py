@@ -6,6 +6,7 @@ import numpy as np
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # ROS messages
+from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Quaternion, Twist, Pose
 
@@ -17,6 +18,7 @@ class Kalman_Filter(Rover):
         Rover.__init__(self)
 
         # Kalman filter parameters
+        self.__mode = ""
         self.__x = np.array([0, 0, 0])
         self.__z = np.array([0, 0, 0])
         self.__C = np.eye(3)
@@ -38,9 +40,13 @@ class Kalman_Filter(Rover):
         self.__odom_pub = rospy.Publisher("/odom/kalman", Odometry, queue_size = 10)
         self.__nav_pub = rospy.Publisher("/kalman_predict/pose/navigation", Pose, queue_size = 1)
         self.__control_pub = rospy.Publisher("/kalman_predict/pose/controller", Pose, queue_size = 1)
+        rospy.Subscriber("/filter_mode", String, self.__filter_mode_callback)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/kalman_predict/vel", Twist, self.__vel_callback)
         rospy.Subscriber("/cmd_vel", Twist, self.__cmd_vel_callback)
+
+    def __filter_mode_callback(self, msg:String) -> None:
+        self.__mode = msg.data
 
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
@@ -55,14 +61,14 @@ class Kalman_Filter(Rover):
     def __cmd_vel_callback(self, msg:Twist) -> None:
         self.__cmd_vel = msg
 
-    def __predict(self, mode:str) -> None:
+    def __predict(self) -> None:
         self.__pose.position.x = self.__x[0]
         self.__pose.position.y = self.__x[1]
         self.__pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self.__x[2]))
-        if mode == "Control":
+        if self.__mode == "Control":
             self.__control_pub.publish(self.__pose)
             # rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 1)
-        elif mode == "Navigation":
+        elif self.__mode == "Navigation":
             self.__nav_pub.publish(self.__pose)
             # rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 1)
         else:
@@ -86,7 +92,7 @@ class Kalman_Filter(Rover):
         self.__odom.pose.pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self.__x[2]))
         self.__odom_pub.publish(self.__odom)
 
-    def apply_filter(self, mode:str) -> None:
-        self.__predict(mode)
+    def apply_filter(self) -> None:
+        self.__predict()
         self.__correct()
         self.__publish()

@@ -5,13 +5,12 @@ import rospy
 import numpy as np
 
 # ROS messages
-from std_msgs.msg import Bool, Int8
+from std_msgs.msg import Bool, Int8, String
+from geometry_msgs.msg import Twist
 from rover_slam.msg import Quadrants, Border
 
 # Rover packages
-from classes_movement import Rover_Navigation, Controller, Kalman_Filter
 from classes_slam import Map_Sections, PRM, Dijkstra_Path
-from classes_sensors import Joystick
 
 class StateMachine:
     def __init__(self) -> None:
@@ -27,15 +26,12 @@ class StateMachine:
         self.__visited_quadrants = []
         self.__last_quadrant_time = 0
 
-        self.__nav = Rover_Navigation()
-        self.__control_class = Controller()
-        self.__joystick = Joystick()
-
-        self.__filter = Kalman_Filter()
-        self.__mode = "Manual"
-
+        self.__cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
         self.__border_pub = rospy.Publisher("/curr_border", Border, queue_size = 10)
+        self.__control_pub = rospy.Publisher("/enable/control", Bool, queue_size = 10)
+        self.__nav_pub = rospy.Publisher("/enable/navegation", Bool, queue_size = 10)
+        self.__kalman_pub = rospy.Publisher("/filter_mode", String, queue_size = 10)
 
         rospy.Subscriber("/borders", Quadrants, self.__borders_callback)
         rospy.Subscriber("/detected/sound", Bool, self.__sound_callback)
@@ -64,74 +60,75 @@ class StateMachine:
         self.__control_ready = msg.data
 
     def run(self):
-        self.__filter.apply_filter(self.__mode)
-        self.__joystick.manual_control()
         if self.__state == "EXPLORATION":
-            self.__exploration()
             if self.__map:
-                self.__nav.stop()
+                self.__cmd_vel.publish(Twist())
                 self.__move_to_control()
                 rospy.loginfo("State: CONTROL - Moving to a quadrant...")
 
         elif self.__state == "CONTROL":
-            self.__control()
+            flag = False
             if self.__manual_mode:
-                self.__nav.stop()
+                self.__cmd_vel.publish(Twist())
                 self.__state = "MANUAL"
-                self.__mode = "Manual"
+                self.__kalman_pub.publish("Manual")
                 rospy.loginfo("State: MANUAL - Use the joystick for moving the rover...")
             elif self.__control_ready:
                 self.__border_pub.publish(self.__curr_quadrant)
                 self.__state = "NAVIGATION"
-                self.__mode = "Navigation"
+                self.__kalman_pub.publish("Navigation")
                 self.__last_quadrant_time = rospy.Time.now().to_sec()
                 rospy.loginfo("State: NAVIGATION - Navigating...")
             elif self.__person:
                 self.__state = "ALERT2"
-                self.__mode = ""
+                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT2 - Person detected")
             elif self.__sound:
                 self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
-                self.__mode = ""
+                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
+            else:
+                flag = True
+            self.__control_pub.publish(flag)
 
         elif self.__state == "NAVIGATION":
-            self.__navigation()
+            flag = False
             if self.__manual_mode:
-                self.__nav.stop()
+                self.__cmd_vel.publish(Twist())
                 self.__state = "MANUAL"
-                self.__mode = "Manual"
+                self.__kalman_pub.publish("Manual")
                 rospy.loginfo("State: MANUAL - Use the joystick for moving the rover...")
             elif self.__person:
                 self.__state = "ALERT2"
-                self.__mode = ""
+                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT2 - Person detected")
             elif self.__sound:
                 self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
-                self.__mode = ""
+                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
+            else:
+                flag = True
+            self.__nav_pub.publish(flag)
+            self.__check_time()
 
         elif self.__state == "MANUAL":
-            self.__manual()
             if not self.__manual_mode:
                 self.__state = "NAVIGATION"
-                self.__mode = "Navigation"
+                self.__kalman_pub.publish("Navigation")
+                self.__last_quadrant_time = rospy.Time.now().to_sec()
                 rospy.loginfo("State: NAVIGATION - Navigating...")
 
         elif self.__state == "ALERT1":
             self.__alert1()
             if self.__person:
                 self.__state = "ALERT2"
-                self.__mode = ""
+                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT2 - Person detected")
         
         elif self.__state == "ALERT2":
             self.__alert2()
-
-    def __exploration(self) -> None:
-        self.__joystick.manual_control()
 
     def __move_to_control(self) -> None:
         shape = Map_Sections().split(2, 2)
@@ -141,21 +138,11 @@ class StateMachine:
         self.__planner = Dijkstra_Path(graph, shape)
         self.__planning()
 
-    def __control(self) -> None:
-        self.__control_class.control()
-
-    def __navigation(self) -> None:
-        self.__nav.move()
-        self.__check_time()
-
-    def __manual(self) -> None:
-        self.__joystick.manual_control()
-
     def __alert1(self) -> None:
-        self.__control_class.rotate()
+        self.__buzzer_pub.publish(1)
 
     def __alert2(self) -> None:
-        self.__nav.stop()
+        self.__cmd_vel.publish(Twist())
         self.__buzzer_pub.publish(1)
 
     def __select_quadrant(self) -> None:
@@ -176,21 +163,21 @@ class StateMachine:
             self.__planning()
 
     def __planning(self) -> None:
-        self.__nav.stop()
+        self.__cmd_vel.publish(Twist())
         while True:
             self.__select_quadrant()
             path = self.__planner.calculate_dijkstra(self.__curr_quadrant, self.__quadrants.offset)
             if (self.__curr_quadrant.upper.x <= path[-1][0] <= self.__curr_quadrant.lower.x 
                 and self.__curr_quadrant.upper.y <= path[-1][1] <= self.__curr_quadrant.lower.y):
-                self.__control_class.set_path(path)
+                print(path)
                 break
-            rospy.sleep(1)
             rospy.loginfo("Unable to create a path to the current quadrant, selecting another quadrant...")
+            rospy.sleep(1)
         self.__state = "CONTROL"
-        self.__mode = "Control"
+        self.__kalman_pub.publish("Control")
 
     def stop(self) -> None:
-        self.__nav.stop()
+        self.__cmd_vel.publish(Twist())
         rospy.loginfo("Stoping the State Machine Node")
         rospy.signal_shutdown("Stoping the State Machine Node")
 

@@ -121,7 +121,7 @@ class modelPredict:
             for i in range(len(boxes)):
                 x, y, w, h = tuple(map(int, boxes[i]))
                 cv.rectangle(img, (x, y), (x + w, y + h), self.__color, 2) # Bounding box
-            cv.imwrite(self.__folder + datetime.datetime.now().strftime("%m_%d_%Y-%H:%M:%S") + ".jpeg", img)
+            # cv.imwrite(self.__folder + datetime.datetime.now().strftime("%m_%d_%Y-%H:%M:%S") + ".jpeg", img)
         return cv.imencode(".jpeg", img)[1].tobytes()
 
     def predict(self) -> None:
