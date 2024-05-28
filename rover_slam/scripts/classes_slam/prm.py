@@ -24,8 +24,8 @@ class PRM:
         return np.linalg.norm(np.array(p1) - np.array(p2))
 
     def __widen_obstacles(self) -> None:
-        # kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
-        # self.__map = cv.morphologyEx(self.__map, cv.MORPH_OPEN, kernel, iterations = 1)
+        kernel = cv.getStructuringElement(cv.MORPH_RECT, (2, 2))
+        self.__map = cv.morphologyEx(self.__map, cv.MORPH_OPEN, kernel, iterations = 1)
         kernel = cv.getStructuringElement(cv.MORPH_RECT, (self.__safe_dist, self.__safe_dist))
         self.__map = cv.morphologyEx(self.__map, cv.MORPH_DILATE, kernel, iterations = 2)
 
@@ -86,13 +86,12 @@ class PRM:
         self.__graph.add_node(point)
 
         for i in range(self.__iterations):
-            rospy.loginfo(i)
             point = self.__generate_point()
             neighbor = self.__nearest_node(point)
             point = self.__approach_point(neighbor, point)
             if point is not None:
                 self.__add_edges(point, neighbor)
-        return self.__graph, self.__map.shape
+        return self.__graph
 
     # Plot the map, RRT points and Dijkstra path
     def plot(self, path:list) -> None:

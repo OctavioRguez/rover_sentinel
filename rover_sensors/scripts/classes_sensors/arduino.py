@@ -20,7 +20,7 @@ class Arduino:
         self.__sound_pub = rospy.Publisher("/detected/sound", Bool, queue_size = 10)
         self.__distance_pub = rospy.Publisher("/sensor/distance", Float32 , queue_size = 10)
         rospy.Subscriber("/buzzer", Int8, self.__buzzer_callback)
-        rospy.loginfo(f"Calibrating sound sensor.")
+        rospy.loginfo(f"Calibrating sound sensor...")
 
     def __buzzer_callback(self, msg:Int8) -> None:
         self.send_buzzer_data(msg.data)

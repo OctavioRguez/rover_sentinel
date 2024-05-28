@@ -36,7 +36,7 @@ class Rover_Navigation(Rover):
         self.__velocity = Twist()
         self.__vel_kalman = Twist()
 
-        self.__kalman_pub = rospy.Publisher("/kalman_predict/vel", Twist, queue_size = 10)
+        self.__kalman_pub = rospy.Publisher("/kalman_predict/vel", Twist, queue_size = 1)
         rospy.Subscriber("/kalman_predict/pose/navigation", Pose, self.__kalman_callback)
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
@@ -45,7 +45,6 @@ class Rover_Navigation(Rover):
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
         rospy.Subscriber("/curr_border", Border, self.__borders_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
-        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
         q = msg.orientation

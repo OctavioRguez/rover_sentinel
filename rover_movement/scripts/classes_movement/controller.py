@@ -6,7 +6,7 @@ import numpy as np
 from tf.transformations import euler_from_quaternion
 
 # ROS messages
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist, Pose
 from nav_msgs.msg import Odometry, Path
@@ -35,15 +35,14 @@ class Controller(Rover):
         self.__vel = Twist()
         self.__vel_kalman = Twist()
 
-        self.__kalman_pub = rospy.Publisher("/kalman_predict/vel", Twist, queue_size = 10)
+        self.__kalman_pub = rospy.Publisher("/kalman_predict/vel", Twist, queue_size = 1)
         rospy.Subscriber("/kalman_predict/pose/controller", Pose, self.__kalman_callback)
 
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
+        self.__ready_pub = rospy.Publisher("/ready/control", Bool, queue_size = 10)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
-        rospy.Subscriber("/path", Path, self.__path_callback)
-        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
@@ -73,8 +72,9 @@ class Controller(Rover):
     def __distance_callback(self, msg:Float32) -> None:
         self.__dist = msg.data
 
-    def __path_callback(self, msg:Path) -> None:
-        self.__path = msg.poses
+    def set_path(self, path:Path) -> None:
+        self.__path = path
+        self.__point = 0
 
     def control(self) -> None:
         if self.__enable:
@@ -90,10 +90,11 @@ class Controller(Rover):
     def __control_velocity(self, x:float, y:float, theta:float) -> tuple:
         v, w = 0.0, 0.0
         if self.__point >= len(self.__path):
+            self.__ready_pub.publish(True)
             return v, w
         
-        dx = self.__path[self.__point].pose.position.x - x
-        dy = self.__path[self.__point].pose.position.y - y
+        dx = self.__path[self.__point][0] - x
+        dy = self.__path[self.__point][1] - y
         dist = np.sqrt(dx**2 + dy**2)
 
         thetad = np.arctan2(dy, dx)

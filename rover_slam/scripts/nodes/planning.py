@@ -15,9 +15,9 @@ if __name__ == "__main__":
 
     print("The PRM_Dijkstra Planning is Running")
     try:
-        graph, shape = prm.calculate_prm()
-        dijkstra = Dijkstra_Path(graph, shape)
-        path = dijkstra.calculate_dijkstra(None)
+        graph = prm.calculate_prm()
+        dijkstra = Dijkstra_Path(graph, (800, 800))
+        path = dijkstra.calculate_dijkstra(None, None)
         prm.plot(path)
     except rospy.ROSInterruptException:
         pass

@@ -23,8 +23,8 @@ class StateMachine:
         self.__manual_mode = False
 
         self.__curr_quadrant = None
-        self.__quadrants = []
-        self.__visied_quadrants = []
+        self.__quadrants = Quadrants()
+        self.__visited_quadrants = []
         self.__last_quadrant_time = 0
 
         self.__nav = Rover_Navigation()
@@ -32,7 +32,7 @@ class StateMachine:
         self.__joystick = Joystick()
 
         self.__filter = Kalman_Filter()
-        self.__mode = "Nav"
+        self.__mode = "Manual"
 
         self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
         self.__border_pub = rospy.Publisher("/curr_border", Border, queue_size = 10)
@@ -46,7 +46,7 @@ class StateMachine:
         rospy.wait_for_message("/start", Bool, timeout = 360)
 
     def __borders_callback(self, msg:Quadrants) -> None:
-        self.__quadrants = msg.borders
+        self.__quadrants = msg
 
     def __manual_callback(self, msg:Bool) -> None:
         self.__manual_mode = msg.data
@@ -65,16 +65,16 @@ class StateMachine:
 
     def run(self):
         self.__filter.apply_filter(self.__mode)
+        self.__joystick.manual_control()
         if self.__state == "EXPLORATION":
+            self.__exploration()
             if self.__map:
                 self.__nav.stop()
                 self.__move_to_control()
-                self.__state = "CONTROL"
-                self.__mode = "Control"
                 rospy.loginfo("State: CONTROL - Moving to a quadrant...")
-            self.__exploration()
 
         elif self.__state == "CONTROL":
+            self.__control()
             if self.__manual_mode:
                 self.__nav.stop()
                 self.__state = "MANUAL"
@@ -83,7 +83,8 @@ class StateMachine:
             elif self.__control_ready:
                 self.__border_pub.publish(self.__curr_quadrant)
                 self.__state = "NAVIGATION"
-                self.__mode = "Nav"
+                self.__mode = "Navigation"
+                self.__last_quadrant_time = rospy.Time.now().to_sec()
                 rospy.loginfo("State: NAVIGATION - Navigating...")
             elif self.__person:
                 self.__state = "ALERT2"
@@ -94,9 +95,9 @@ class StateMachine:
                 self.__state = "ALERT1"
                 self.__mode = ""
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
-            self.__control()
 
         elif self.__state == "NAVIGATION":
+            self.__navigation()
             if self.__manual_mode:
                 self.__nav.stop()
                 self.__state = "MANUAL"
@@ -111,40 +112,34 @@ class StateMachine:
                 self.__state = "ALERT1"
                 self.__mode = ""
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
-            self.__navigation()
 
         elif self.__state == "MANUAL":
+            self.__manual()
             if not self.__manual_mode:
                 self.__state = "NAVIGATION"
-                self.__mode = "Nav"
+                self.__mode = "Navigation"
                 rospy.loginfo("State: NAVIGATION - Navigating...")
-            self.__manual()
 
         elif self.__state == "ALERT1":
+            self.__alert1()
             if self.__person:
                 self.__state = "ALERT2"
                 self.__mode = ""
                 rospy.loginfo("State: ALERT2 - Person detected")
-            self.__alert1()
         
         elif self.__state == "ALERT2":
             self.__alert2()
 
     def __exploration(self) -> None:
-        self.__nav.move()
+        self.__joystick.manual_control()
 
     def __move_to_control(self) -> None:
-        Map_Sections().split(2, 2)
-        graph, shape = PRM().calculate_prm()
+        shape = Map_Sections().split(2, 2)
+        rospy.loginfo("Map splited into quadrants, calculating PRM...")
+        graph = PRM().calculate_prm()
+        rospy.loginfo("PRM calculated, creating a path to a quadrant...")
         self.__planner = Dijkstra_Path(graph, shape)
-        while True:
-            self.__select_quadrant()
-            path = self.__planner.calculate_dijkstra(self.__curr_quadrant)
-            point = np.array(path[-1]) * 40 + np.array([shape[0]/2, shape[1]/2])
-            if (self.__curr_quadrant.upper.x <= point[0] <= self.__curr_quadrant.lower.x 
-                and self.__curr_quadrant.upper.y <= point[1] <= self.__curr_quadrant.lower.y):
-                break
-            rospy.loginfo("Unable to create a path to the current quadrant, selecting another quadrant...")
+        self.__planning()
 
     def __control(self) -> None:
         self.__control_class.control()
@@ -164,25 +159,35 @@ class StateMachine:
         self.__buzzer_pub.publish(1)
 
     def __select_quadrant(self) -> None:
-        num_of_quadrants = len(self.__quadrants)
-        if len(self.__quadrants) == len(self.__visied_quadrants):
-            self.__visied_quadrants = []
+        num_of_quadrants = len(self.__quadrants.borders)
+        if num_of_quadrants == len(self.__visited_quadrants):
+            self.__visited_quadrants = []
         while True:
-            self.__curr_quadrant = self.__quadrants[np.random.randint(0, num_of_quadrants - 1)]
-            if not self.__curr_quadrant in self.__visied_quadrants:
-                self.__visied_quadrants.append(self.__curr_quadrant)
-                self.__last_quadrant_time = rospy.Time.now().to_sec()
+            self.__curr_quadrant = self.__quadrants.borders[np.random.randint(0, num_of_quadrants)]
+            if not self.__curr_quadrant in self.__visited_quadrants:
+                self.__visited_quadrants.append(self.__curr_quadrant)
                 break
 
     def __check_time(self) -> None:
         current_time = rospy.Time.now().to_sec()
         elapsed_time = current_time - self.__last_quadrant_time
         if elapsed_time >= 30:
+            rospy.loginfo("Time elapsed, selecting another quadrant...")
+            self.__planning()
+
+    def __planning(self) -> None:
+        self.__nav.stop()
+        while True:
             self.__select_quadrant()
-            self.__planner.calculate_dijkstra(self.__curr_quadrant)
-            self.__state = "CONTROL"
-            self.__mode = "Control"
-            self.__nav.stop()
+            path = self.__planner.calculate_dijkstra(self.__curr_quadrant, self.__quadrants.offset)
+            if (self.__curr_quadrant.upper.x <= path[-1][0] <= self.__curr_quadrant.lower.x 
+                and self.__curr_quadrant.upper.y <= path[-1][1] <= self.__curr_quadrant.lower.y):
+                self.__control_class.set_path(path)
+                break
+            rospy.sleep(1)
+            rospy.loginfo("Unable to create a path to the current quadrant, selecting another quadrant...")
+        self.__state = "CONTROL"
+        self.__mode = "Control"
 
     def stop(self) -> None:
         self.__nav.stop()

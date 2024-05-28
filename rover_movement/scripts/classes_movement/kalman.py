@@ -36,12 +36,11 @@ class Kalman_Filter(Rover):
         self.__cmd_vel = Twist()
 
         self.__odom_pub = rospy.Publisher("/odom/kalman", Odometry, queue_size = 10)
-        self.__nav_pub = rospy.Publisher("/kalman_predict/pose/navigation", Pose, queue_size = 10)
-        self.__control_pub = rospy.Publisher("/kalman_predict/pose/controller", Pose, queue_size = 10)
+        self.__nav_pub = rospy.Publisher("/kalman_predict/pose/navigation", Pose, queue_size = 1)
+        self.__control_pub = rospy.Publisher("/kalman_predict/pose/controller", Pose, queue_size = 1)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
         rospy.Subscriber("/kalman_predict/vel", Twist, self.__vel_callback)
         rospy.Subscriber("/cmd_vel", Twist, self.__cmd_vel_callback)
-        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
 
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
@@ -57,20 +56,22 @@ class Kalman_Filter(Rover):
         self.__cmd_vel = msg
 
     def __predict(self, mode:str) -> None:
-        dt = self._get_dt()
         self.__pose.position.x = self.__x[0]
         self.__pose.position.y = self.__x[1]
         self.__pose.orientation = Quaternion(*quaternion_from_euler(0, 0, self.__x[2]))
         if mode == "Control":
             self.__control_pub.publish(self.__pose)
-        elif mode == "Nav":
+            # rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 1)
+        elif mode == "Navigation":
             self.__nav_pub.publish(self.__pose)
+            # rospy.wait_for_message("/kalman_predict/vel", Twist, timeout = 1)
         else:
             self._v, self._w = self.__cmd_vel.linear.x, self.__cmd_vel.angular.z
         x_dot = np.array([self._v*np.cos(self.__x[2]), self._v*np.sin(self.__x[2]), self._w])
+        dt = self._get_dt()
         self.__x = self.__x + x_dot*dt
-        self.__P = self.__P + self.__Q
         self.__x[2] = self._wrap_to_Pi(self.__x[2])
+        self.__P = self.__P + self.__Q
 
     def __correct(self) -> None:
         self.__z = np.array([self._states["x"], self._states["y"], self._states["theta"]])

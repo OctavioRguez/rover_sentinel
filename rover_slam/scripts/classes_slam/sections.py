@@ -3,7 +3,7 @@
 # Python libraries
 import rospy
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 # ROS messages
 from nav_msgs.msg import OccupancyGrid
@@ -13,7 +13,8 @@ from rover_slam.msg import Quadrants, Border
 class Map_Sections:
     def __init__(self) -> None:
         self.__map = None
-        self.__borders = []
+        self.__shape = (0, 0)
+        self.__borders = Quadrants()
 
         self.__borders_pub = rospy.Publisher("/borders", Quadrants, queue_size = 10)
         rospy.Subscriber("/map", OccupancyGrid, self.__map_callback)
@@ -21,6 +22,7 @@ class Map_Sections:
 
     def __map_callback(self, data:OccupancyGrid) -> None:
         self.__map = np.array(data.data, dtype = np.uint8).reshape((data.info.height, data.info.width))
+        self.__shape = (data.info.width, data.info.height)
 
     def __crop_img(self) -> tuple:
         # Create a new image and crop the unknown areas
@@ -30,7 +32,7 @@ class Map_Sections:
         img_crop.save("/home/puzzlebot/map.png")
         return points
 
-    def split(self, rows:int, columns:int) -> None:
+    def split(self, rows:int, columns:int) -> tuple:
         points = self.__crop_img()
         img = Image.open("/home/puzzlebot/map.png")
 
@@ -45,9 +47,10 @@ class Map_Sections:
                                 y = (i * section_height + points[1]  - self.__map.shape[0]/2)/40)
                 lower = Point32(x = ((j + 1) * section_width + points[0] - self.__map.shape[1]/2)/40, 
                                 y = ((i + 1) * section_height + points[1]- self.__map.shape[0]/2)/40)
-                self.__borders.append(Border(upper = upper, lower = lower))
+                self.__borders.borders.append(Border(upper = upper, lower = lower))
+        self.__borders.offset = Point32(x = points[0], y = points[1])
         self.__borders_pub.publish(self.__borders)
-
+        
         # Draw the lines to look at the sections
         draw = ImageDraw.Draw(img)
         for i in range(1, columns):
@@ -57,6 +60,7 @@ class Map_Sections:
             y = i * section_height
             draw.line((0, y, width, y))
         img.save("/home/puzzlebot/map_sections.png")
+        return self.__shape
 
     def stop(self) -> None:
         rospy.loginfo("The split map node is stopping")
