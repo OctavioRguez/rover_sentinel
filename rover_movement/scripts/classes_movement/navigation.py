@@ -21,7 +21,7 @@ class Rover_Navigation(Rover):
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self._v, self._w = 0.2, 0.2
-        self.__enable = True
+        self.__enable = False
         self.__turning = True
         self.__turning_kalman = True
         self.__w_past, self.__w_past_kalman = 0.0, 0.0

@@ -3,6 +3,11 @@
 # Python libraries
 import rospy
 import numpy as np
+import datetime
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 
 # ROS messages
 from std_msgs.msg import Bool, Int8, String
@@ -25,6 +30,13 @@ class StateMachine:
         self.__quadrants = Quadrants()
         self.__visited_quadrants = []
         self.__last_quadrant_time = 0
+
+        self.__smtp_server = "smtp-mail.outlook.com"
+        self.__smtp_port = 587
+        self.__email_msg = MIMEMultipart()
+        self.__email_msg['From'] = "puzzlebot2@hotmail.com"
+        self.__email_msg['To'] = ', '.join(["A01639786@tec.mx", "A01702790@tec.mx"])
+        self.__email_msg['Subject'] = "Intruder Alert"
 
         self.__cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         self.__buzzer_pub = rospy.Publisher("/buzzer", Int8, queue_size = 10)
@@ -125,6 +137,7 @@ class StateMachine:
             if self.__person:
                 self.__state = "ALERT2"
                 self.__kalman_pub.publish("")
+                self.__send_email()
                 rospy.loginfo("State: ALERT2 - Person detected")
         
         elif self.__state == "ALERT2":
@@ -139,11 +152,27 @@ class StateMachine:
         self.__planning()
 
     def __alert1(self) -> None:
-        self.__buzzer_pub.publish(1)
+        pass
 
     def __alert2(self) -> None:
         self.__cmd_vel.publish(Twist())
         self.__buzzer_pub.publish(1)
+
+    def __send_email(self) -> None:
+        body = "ALERT: Person detected at the time " + datetime.datetime.now().strftime("%m_%d_%Y-%H:%M:%S")
+        self.__email_msg.attach(MIMEText(body, 'plain'))
+        # Attach image
+        with open("/home/puzzlebot/person.jpeg", 'rb') as img:
+            img_data = img.read()
+            image = MIMEImage(img_data)
+            image.add_header('Content-ID', '<image1>')
+            image.add_header('Content-Disposition', 'inline', filename = "image.jpeg")
+            self.__email_msg.attach(image)
+        # Send to server
+        with smtplib.SMTP(self.__smtp_server, self.__smtp_port) as server:
+            server.starttls()
+            server.login("puzzlebot2@hotmail.com", "Puzzlebot#72")
+            server.sendmail("puzzlebot2@hotmail.com", ["A01639786@tec.mx"], self.__email_msg.as_string())
 
     def __select_quadrant(self) -> None:
         num_of_quadrants = len(self.__quadrants.borders)
