@@ -21,7 +21,7 @@ class Rover_Navigation(Rover):
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
         self._v, self._w = 0.2, 0.2
-        self.__enable = False
+        self.__enable = True
         self.__turning = True
         self.__turning_kalman = True
         self.__w_past, self.__w_past_kalman = 0.0, 0.0
@@ -33,6 +33,11 @@ class Rover_Navigation(Rover):
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
         self.__dist = float("inf")
+        self.__ir_left = float("inf")
+        self.__ir_right = float("inf")
+
+        self.__left_time = rospy.Time.now().to_sec()
+        self.__right_time = rospy.Time.now().to_sec()
 
         self.__velocity = Twist()
         self.__vel_kalman = Twist()
@@ -44,8 +49,10 @@ class Rover_Navigation(Rover):
         rospy.Subscriber("/enable/navegation", Bool, self.__enable_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
-        rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
         rospy.Subscriber("/curr_border", Border, self.__borders_callback)
+        rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
+        rospy.Subscriber("/sensor/ir/left", Bool, self.__ir_left_callback)
+        rospy.Subscriber("/sensor/ir/right", Bool, self.__ir_right_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
@@ -66,9 +73,6 @@ class Rover_Navigation(Rover):
         self.__left = msg.ranges[144:430]
         self.__right = msg.ranges[717:1004]
 
-    def __distance_callback(self, msg:Float32) -> None:
-        self.__dist = msg.data
-
     def __odom_callback(self, msg:Odometry) -> None:
         self._states["x"] = msg.pose.pose.position.x 
         self._states["y"] = msg.pose.pose.position.y
@@ -79,6 +83,20 @@ class Rover_Navigation(Rover):
         self.__x_min, self.__x_max = msg.upper.x, msg.lower.x
         self.__y_min, self.__y_max = msg.upper.y, msg.lower.y
 
+    def __distance_callback(self, msg:Float32) -> None:
+        self.__dist = msg.data
+
+    # Transform the digital signal of the IR sensor, according to its threshold (17 cm)
+    def __ir_left_callback(self, msg:Bool) -> None:
+        if (rospy.Time.now().to_sec() - self.__left_time > 0.2) or msg.data:
+            self.__ir_left = 0.12 if msg.data else float("inf")
+            self.__left_time = rospy.Time.now().to_sec()
+
+    def __ir_right_callback(self, msg:Bool) -> None:
+        if (rospy.Time.now().to_sec() - self.__right_time > 0.2) or msg.data:
+            self.__ir_right = 0.09 if msg.data else float("inf")
+            self.__right_time = rospy.Time.now().to_sec()
+
     def move(self) -> None:
         if self.__enable:
             v, w, self.__turning = self.__avoid_obstacles(*self.__compute_lasers(self._states["x"], self._states["y"], self._states["theta"]), self.__turning)
@@ -88,9 +106,10 @@ class Rover_Navigation(Rover):
             self.__vel_pub.publish(self.__velocity)
     
     def __avoid_obstacles(self, front_laser, left_laser, right_laser, turning) -> tuple:
-        min_forward = min(min(self.__forward), front_laser, self.__dist)
-        min_left = min(min(self.__left), left_laser)
-        min_right = min(min(self.__right), right_laser)
+        print(self.__ir_left, self.__ir_right)
+        min_forward = min(min(self.__forward), front_laser, self.__dist, self.__ir_left, self.__ir_right)
+        min_left = min(min(self.__left), left_laser, self.__ir_left)
+        min_right = min(min(self.__right), right_laser, self.__ir_right)
 
         v, w = 0.0, None
         # No obstacles in any direction
