@@ -30,8 +30,13 @@ class Controller(Rover):
         # Lidar data
         self.__forward, self.__left, self.__right = [], [], []
         self.__dist = float("inf")
+        self.__ir_left = float("inf")
+        self.__ir_right = float("inf")
+        
         self.__turning = True
         self.__turning_kalman = True
+        self.__left_time = rospy.Time.now().to_sec()
+        self.__right_time = rospy.Time.now().to_sec()
 
         self.__vel = Twist()
         self.__vel_kalman = Twist()
@@ -46,6 +51,8 @@ class Controller(Rover):
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/path", Path, self.__path__callback)
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
+        rospy.Subscriber("/sensor/ir/left", Bool, self.__ir_left_callback)
+        rospy.Subscriber("/sensor/ir/right", Bool, self.__ir_right_callback)
         rospy.wait_for_message("/scan", LaserScan, timeout = 30)
 
     def __kalman_callback(self, msg:Pose) -> None:
@@ -75,12 +82,23 @@ class Controller(Rover):
         self.__left = msg.ranges[144:430]
         self.__right = msg.ranges[717:1004]
 
-    def __distance_callback(self, msg:Float32) -> None:
-        self.__dist = msg.data
-
     def __path__callback(self, msg:Path) -> None:
         self.__path = msg.poses
         self.__point = 0
+
+    def __distance_callback(self, msg:Float32) -> None:
+        self.__dist = msg.data
+
+    # Transform the digital signal of the IR sensor, according to its threshold (17 cm)
+    def __ir_left_callback(self, msg:Bool) -> None:
+        if (rospy.Time.now().to_sec() - self.__left_time > 0.5) or msg.data:
+            self.__ir_left = 0.12 if msg.data else float("inf")
+            self.__left_time = rospy.Time.now().to_sec()
+
+    def __ir_right_callback(self, msg:Bool) -> None:
+        if (rospy.Time.now().to_sec() - self.__right_time > 0.5) or msg.data:
+            self.__ir_right = 0.09 if msg.data else float("inf")
+            self.__right_time = rospy.Time.now().to_sec()
 
     def control(self) -> None:
         if self.__enable:
@@ -100,8 +118,8 @@ class Controller(Rover):
             self.__ready_pub.publish(True)
             return v, w
         
-        dx = self.__path[self.__point][0] - x
-        dy = self.__path[self.__point][1] - y
+        dx = self.__path[self.__point].pose.position.x - x
+        dy = self.__path[self.__point].pose.position.y - y
         dist = np.sqrt(dx**2 + dy**2)
 
         thetad = np.arctan2(dy, dx)
@@ -118,7 +136,11 @@ class Controller(Rover):
         self.__left = self.__left + self.__forward[50:144]
         self.__right = self.__right + self.__forward[144:154]
         self.__forward = self.__forward[:50] + self.__forward[154:]
-        min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
+
+        min_forward = min(min(self.__forward), self.__dist)
+        min_left = min(min(self.__left), self.__ir_left)
+        min_right = min(min(self.__right), self.__ir_right)
+
         if all(dist < self._safe_distance for dist in [min_forward, min_left, min_right]):
             v, w = 0.0, self.__wmax
         elif min_forward < self._safe_distance:
@@ -130,7 +152,10 @@ class Controller(Rover):
         return v, self.__wmax*np.tanh(w / self.__wmax)
 
     def __reactive_navegation(self, turning:bool) -> tuple:
-        min_forward, min_left, min_right = [min(self.__dist, min(self.__forward)), min(self.__left), min(self.__right)]
+        min_forward = min(min(self.__forward), self.__dist, self.__ir_left, self.__ir_right)
+        min_left = min(min(self.__left), self.__ir_left)
+        min_right = min(min(self.__right), self.__ir_right)
+        
         v, w = 0.0, None
         # No obstacles in any direction
         if all(dist > self._safe_distance for dist in [min_forward, min_left, min_right]):
