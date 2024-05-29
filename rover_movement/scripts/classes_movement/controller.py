@@ -85,6 +85,7 @@ class Controller(Rover):
     def __path__callback(self, msg:Path) -> None:
         self.__path = msg.poses
         self.__point = 0
+        self.__ready_pub.publish(False)
 
     def __distance_callback(self, msg:Float32) -> None:
         self.__dist = msg.data

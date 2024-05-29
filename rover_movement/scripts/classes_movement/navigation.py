@@ -106,7 +106,6 @@ class Rover_Navigation(Rover):
             self.__vel_pub.publish(self.__velocity)
     
     def __avoid_obstacles(self, front_laser, left_laser, right_laser, turning) -> tuple:
-        print(self.__ir_left, self.__ir_right)
         min_forward = min(min(self.__forward), front_laser, self.__dist, self.__ir_left, self.__ir_right)
         min_left = min(min(self.__left), left_laser, self.__ir_left)
         min_right = min(min(self.__right), right_laser, self.__ir_right)

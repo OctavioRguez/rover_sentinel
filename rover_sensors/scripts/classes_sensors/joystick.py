@@ -23,7 +23,7 @@ class Joystick:
 
         self.__vel = Twist()
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
-        self.__nav_pub = rospy.Publisher("/manual_mode", Bool, queue_size = 10)
+        self.__manual_pub = rospy.Publisher("/manual_mode", Bool, queue_size = 10)
 
     def __udp_connection(self, ip:str, port):
         rospy.loginfo("Starting the UPD connection")
@@ -43,7 +43,7 @@ class Joystick:
         if self.__last_val == 0 and self.__button == 1:
             self.stop()
             self.__manual = not self.__manual
-            self.__nav_pub.publish(False) if self.__manual else self.__nav_pub.publish(True)
+            self.__manual_pub.publish(True) if self.__manual else self.__manual_pub.publish(False)
         self.__last_val = self.__button
     
     def manual_control(self) -> None:

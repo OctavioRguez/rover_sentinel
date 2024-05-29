@@ -12,11 +12,11 @@ int joyYValue = 0;
 int buttonValue = 0;
 
 // Configura tu red Wi-Fi
-const char* ssid = "JetsonTlaquepaque";
-const char* password = "Puzzlebot72";
+const char* ssid = "Freevirus";
+const char* password = "freemalware";
 
 // Dirección IP y puerto de la Jetson Nano
-const char* jetson_ip = "10.42.0.1";
+const char* jetson_ip = "192.168.211.104";
 const int jetson_port = 5005;
 
 WiFiUDP udp;

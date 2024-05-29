@@ -127,13 +127,17 @@ class StateMachine:
 
         elif self.__state == "MANUAL":
             if not self.__manual_mode:
-                self.__state = "NAVIGATION"
-                self.__kalman_pub.publish("Navigation")
-                self.__last_quadrant_time = rospy.Time.now().to_sec()
-                rospy.loginfo("State: NAVIGATION - Navigating...")
+                if self.__control_ready:
+                    self.__state = "NAVIGATION"
+                    self.__kalman_pub.publish("Navigation")
+                    self.__last_quadrant_time = rospy.Time.now().to_sec()
+                    rospy.loginfo("State: NAVIGATION - Navigating...")
+                else:
+                    self.__state = "CONTROL"
+                    self.__kalman_pub.publish("Control")
+                    rospy.loginfo("State: CONTROL - Moving to a quadrant...")
 
         elif self.__state == "ALERT1":
-            self.__alert1()
             if self.__person:
                 self.__state = "ALERT2"
                 self.__kalman_pub.publish("")
@@ -150,9 +154,6 @@ class StateMachine:
         rospy.loginfo("PRM calculated, creating a path to a quadrant...")
         self.__planner = Dijkstra_Path(graph, shape)
         self.__planning()
-
-    def __alert1(self) -> None:
-        pass
 
     def __alert2(self) -> None:
         self.__cmd_vel.publish(Twist())
