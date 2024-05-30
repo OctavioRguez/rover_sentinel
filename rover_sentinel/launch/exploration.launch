@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- SLAM -->
+    <node name="gmapping" pkg="rover_slam" type="gmapping.sh"/>
+    <include file="$(find rover_slam)/launch/rover_slam_odometry.launch"></include>
+</launch>

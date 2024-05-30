@@ -12,6 +12,7 @@ from email.mime.image import MIMEImage
 # ROS messages
 from std_msgs.msg import Bool, Int8, String
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 from rover_slam.msg import Quadrants, Border
 
 # Rover packages
@@ -26,6 +27,7 @@ class StateMachine:
         self.__person = False
         self.__manual_mode = False
 
+        self.__pose = (0, 0)
         self.__curr_quadrant = None
         self.__quadrants = Quadrants()
         self.__visited_quadrants = []
@@ -45,6 +47,7 @@ class StateMachine:
         self.__nav_pub = rospy.Publisher("/enable/navegation", Bool, queue_size = 10)
         self.__kalman_pub = rospy.Publisher("/filter_mode", String, queue_size = 10)
 
+        rospy.Subscriber("/odom/kalman", Odometry, self.__odom_callback)
         rospy.Subscriber("/borders", Quadrants, self.__borders_callback)
         rospy.Subscriber("/detected/sound", Bool, self.__sound_callback)
         rospy.Subscriber("/detected/person", Bool, self.__person_callback)
@@ -52,6 +55,9 @@ class StateMachine:
         rospy.Subscriber("/ready/control", Bool, self.__ready_control_callback)
         rospy.Subscriber("/manual_mode", Bool, self.__manual_callback)
         rospy.wait_for_message("/start", Bool, timeout = 360)
+
+    def __odom_callback(self, msg:Odometry) -> None:
+        self.__pose = (msg.pose.pose.position.x, msg.pose.pose.position.y)
 
     def __borders_callback(self, msg:Quadrants) -> None:
         self.__quadrants = msg
@@ -98,8 +104,9 @@ class StateMachine:
             elif self.__sound:
                 self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
-                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
+                self.__visited_quadrants = []
+                self.__select_quadrant()
             else:
                 flag = True
             self.__control_pub.publish(flag)
@@ -118,20 +125,18 @@ class StateMachine:
             elif self.__sound:
                 self.__buzzer_pub.publish(1)
                 self.__state = "ALERT1"
-                self.__kalman_pub.publish("")
                 rospy.loginfo("State: ALERT1 - Sound detected, investigating...")
+                self.__visited_quadrants = []
+                self.__select_quadrant()
             else:
                 flag = True
             self.__nav_pub.publish(flag)
-            self.__check_time()
+            self.__check_time(30)
 
         elif self.__state == "MANUAL":
             if not self.__manual_mode:
                 if self.__control_ready:
-                    self.__state = "NAVIGATION"
-                    self.__kalman_pub.publish("Navigation")
-                    self.__last_quadrant_time = rospy.Time.now().to_sec()
-                    rospy.loginfo("State: NAVIGATION - Navigating...")
+                    self.__approximate_new_quadrant()
                 else:
                     self.__state = "CONTROL"
                     self.__kalman_pub.publish("Control")
@@ -143,6 +148,7 @@ class StateMachine:
                 self.__kalman_pub.publish("")
                 self.__send_email()
                 rospy.loginfo("State: ALERT2 - Person detected")
+            self.__check_time(10)
         
         elif self.__state == "ALERT2":
             self.__alert2()
@@ -175,21 +181,37 @@ class StateMachine:
             server.login("puzzlebot2@hotmail.com", "Puzzlebot#72")
             server.sendmail("puzzlebot2@hotmail.com", ["A01639786@tec.mx"], self.__email_msg.as_string())
 
+    def __approximate_new_quadrant(self) -> None:
+        for quad in self.__quadrants.borders:
+            if (quad.upper.x <= self.__pose[0] <= quad.lower.x) and (quad.upper.y <= self.__pose[1] <= quad.lower.y):
+                break
+        if quad in self.__visited_quadrants:
+            rospy.loginfo("Current quadrant already visited, selecting a new one...")
+            self.__planning()
+        else:
+            rospy.loginfo("Restarting navigation in the current quadrant...")
+            self.__curr_quadrant = quad
+            self.__border_pub.publish(self.__curr_quadrant)
+            self.__state = "NAVIGATION"
+            self.__kalman_pub.publish("Navigation")
+            self.__last_quadrant_time = rospy.Time.now().to_sec()
+            rospy.loginfo("State: NAVIGATION - Navigating...")
+
     def __select_quadrant(self) -> None:
         num_of_quadrants = len(self.__quadrants.borders)
         if num_of_quadrants == len(self.__visited_quadrants):
-            self.__visited_quadrants = []
+            self.__visited_quadrants = [self.__curr_quadrant]
         while True:
             self.__curr_quadrant = self.__quadrants.borders[np.random.randint(0, num_of_quadrants)]
             if not self.__curr_quadrant in self.__visited_quadrants:
-                self.__visited_quadrants.append(self.__curr_quadrant)
                 break
 
-    def __check_time(self) -> None:
+    def __check_time(self, time:int) -> None:
         current_time = rospy.Time.now().to_sec()
         elapsed_time = current_time - self.__last_quadrant_time
-        if elapsed_time >= 30:
+        if elapsed_time >= time:
             rospy.loginfo("Time elapsed, selecting another quadrant...")
+            self.__visited_quadrants.append(self.__curr_quadrant)
             self.__planning()
 
     def __planning(self) -> None:
@@ -202,7 +224,6 @@ class StateMachine:
                 print(path)
                 break
             rospy.loginfo("Unable to create a path to the current quadrant, selecting another quadrant...")
-            rospy.sleep(1)
         self.__state = "CONTROL"
         self.__kalman_pub.publish("Control")
 

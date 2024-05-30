@@ -48,7 +48,7 @@ class Rover_Navigation(Rover):
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         rospy.Subscriber("/enable/navegation", Bool, self.__enable_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
-        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
+        rospy.Subscriber("/odom/kalman", Odometry, self.__odom_callback)
         rospy.Subscriber("/curr_border", Border, self.__borders_callback)
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)
         rospy.Subscriber("/sensor/ir/left", Bool, self.__ir_left_callback)

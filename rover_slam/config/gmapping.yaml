@@ -5,10 +5,10 @@ sigma: 0.05
 kernelSize: 3
 lstep: 0.05
 astep: 0.05
-iterations: 5
+iterations: 3
 lsigma: 0.075
 ogain: 3.0
-lskip: 0
+lskip: 4
 minimumScore: 1000
 srr: 0.01
 srt: 0.02

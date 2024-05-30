@@ -23,12 +23,12 @@ class Kalman_Filter(Rover):
         self.__z = np.array([0, 0, 0])
         self.__C = np.eye(3)
         self.__P = np.eye(3)
-        self.__Q = np.array([[0.1, 0, 0],
-                            [0, 0.1, 0],
-                            [0, 0, 0.1]])
-        self.__R = np.array([[0.07, 0, 0],
-                            [0, 0.07, 0],
-                            [0, 0, 0.07]])
+        self.__Q = np.array([[1, 0, 0],
+                            [0, 1, 0],
+                            [0, 0, 1]])
+        self.__R = np.array([[0.01, 0, 0],
+                            [0, 0.01, 0],
+                            [0, 0, 0.01]])
 
         self.__odom = Odometry()
         self.__odom.header.frame_id = "map"
@@ -77,7 +77,7 @@ class Kalman_Filter(Rover):
         dt = self._get_dt()
         self.__x = self.__x + x_dot*dt
         self.__x[2] = self._wrap_to_Pi(self.__x[2])
-        self.__P = self.__P + self.__Q
+        self.__P = self.__Q
 
     def __correct(self) -> None:
         self.__z = np.array([self._states["x"], self._states["y"], self._states["theta"]])

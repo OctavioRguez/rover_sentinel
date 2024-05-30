@@ -47,7 +47,7 @@ class Controller(Rover):
         self.__vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size = 10)
         self.__ready_pub = rospy.Publisher("/ready/control", Bool, queue_size = 10)
         rospy.Subscriber("/enable/control", Bool, self.__enable_callback)
-        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
+        rospy.Subscriber("/odom/kalman", Odometry, self.__odom_callback)
         rospy.Subscriber("/scan", LaserScan, self.__lidar_callback)
         rospy.Subscriber("/path", Path, self.__path__callback)
         rospy.Subscriber("/sensor/distance", Float32, self.__distance_callback)

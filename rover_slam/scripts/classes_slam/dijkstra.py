@@ -17,7 +17,7 @@ class Dijkstra_Path:
         self.__start = (0, 0)
 
         self.__path_pub = rospy.Publisher("/path", Path, queue_size = 10)
-        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
+        rospy.Subscriber("/odom/kalman", Odometry, self.__odom_callback)
 
     def __odom_callback(self, msg:Odometry) -> None:
         self.__start = (msg.pose.pose.position.x*40+self.__width/2, -(msg.pose.pose.position.y)*40+self.__height/2)
@@ -29,7 +29,7 @@ class Dijkstra_Path:
         offset = Point32(0, 0, 0) if offset is None else offset
         
         # Get start and end poses
-        rospy.wait_for_message("/odom/raw", Odometry, timeout = 30)
+        rospy.wait_for_message("/odom/kalman", Odometry, timeout = 30)
         start = (self.__start[0] - offset.x, self.__start[1] - offset.y)
         end = (((border.upper.x+border.lower.x)/2)*40+self.__width/2, ((border.upper.y+border.lower.y)/2)*40+self.__height/2)
         end = (end[0] - offset.x, end[1] - offset.y)

@@ -43,7 +43,7 @@ class Joystick:
         if self.__last_val == 0 and self.__button == 1:
             self.stop()
             self.__manual = not self.__manual
-            self.__manual_pub.publish(True) if self.__manual else self.__manual_pub.publish(False)
+            self.__manual_pub.publish(self.__manual)
         self.__last_val = self.__button
     
     def manual_control(self) -> None:
