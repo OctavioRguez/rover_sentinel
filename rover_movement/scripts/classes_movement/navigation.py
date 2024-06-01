@@ -36,9 +36,6 @@ class Rover_Navigation(Rover):
         self.__ir_left = float("inf")
         self.__ir_right = float("inf")
 
-        self.__left_time = rospy.Time.now().to_sec()
-        self.__right_time = rospy.Time.now().to_sec()
-
         self.__velocity = Twist()
         self.__vel_kalman = Twist()
 
@@ -88,14 +85,10 @@ class Rover_Navigation(Rover):
 
     # Transform the digital signal of the IR sensor, according to its threshold (17 cm)
     def __ir_left_callback(self, msg:Bool) -> None:
-        if (rospy.Time.now().to_sec() - self.__left_time > 0.2) or msg.data:
-            self.__ir_left = 0.12 if msg.data else float("inf")
-            self.__left_time = rospy.Time.now().to_sec()
+        self.__ir_left = 0.12 if msg.data else float("inf")
 
     def __ir_right_callback(self, msg:Bool) -> None:
-        if (rospy.Time.now().to_sec() - self.__right_time > 0.2) or msg.data:
-            self.__ir_right = 0.09 if msg.data else float("inf")
-            self.__right_time = rospy.Time.now().to_sec()
+        self.__ir_right = 0.09 if msg.data else float("inf")
 
     def move(self) -> None:
         if self.__enable:

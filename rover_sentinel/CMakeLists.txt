@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  visualization_msgs
   rover_movement
   rover_sensors
   rover_slam

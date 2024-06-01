@@ -6,8 +6,8 @@ import networkx as nx
 import numpy as np
 
 # ROS messages
-from geometry_msgs.msg import PoseStamped, Pose, Point, Point32
-from nav_msgs.msg import Odometry, Path
+from geometry_msgs.msg import Point32
+from nav_msgs.msg import Odometry
 from rover_slam.msg import Border
 
 class Dijkstra_Path:
@@ -16,11 +16,10 @@ class Dijkstra_Path:
         self.__width, self.__height = shape
         self.__start = (0, 0)
 
-        self.__path_pub = rospy.Publisher("/path", Path, queue_size = 10)
         rospy.Subscriber("/odom/kalman", Odometry, self.__odom_callback)
 
     def __odom_callback(self, msg:Odometry) -> None:
-        self.__start = (msg.pose.pose.position.x*40+self.__width/2, -(msg.pose.pose.position.y)*40+self.__height/2)
+        self.__start = (msg.pose.pose.position.x*40+self.__width/2, (msg.pose.pose.position.y)*40+self.__height/2)
         
     def __dist(self, p1:tuple, p2:tuple) -> float:
         return np.linalg.norm(np.array(p1) - np.array(p2))
@@ -40,6 +39,5 @@ class Dijkstra_Path:
 
         path = nx.dijkstra_path(self.__graph, start_node, goal_node)
         # Transform to meters
-        path = [((pos[0]+offset.x-self.__width/2)/40, -(pos[1]+offset.y-self.__height/2)/40) for pos in path]
-        self.__path_pub.publish(Path(poses=[PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path]))
+        path = [((pos[0]+offset.x-self.__width/2)/40, (pos[1]+offset.y-self.__height/2)/40) for pos in path]
         return path

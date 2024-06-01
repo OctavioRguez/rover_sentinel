@@ -9,6 +9,11 @@
     <!-- Sensors data -->
     <include file="$(find rover_sensors)/launch/rover_manual.launch"></include> 
 
+    <!-- Movement Nodes -->
+    <node name="controller" pkg="rover_movement" type="controller.py" output="screen"/>
+    <node name="navigation" pkg="rover_movement" type="navigation.py" output="screen"/>
+    <node name="kalman_filter" pkg="rover_movement" type="kalman_filter.py" output="screen"/>
+
     <!-- States machine -->
     <node name="rover_state_machine" pkg="rover_sentinel" type="states.py" output="screen"/>
 </launch>

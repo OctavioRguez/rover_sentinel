@@ -32,7 +32,7 @@ class Arduino:
             # Calibrate sound sensor
             self.__min = min(self.__min, sound)
             self.__max = max(self.__max, sound)
-        elif (sound < self.__min or sound >= self.__max):
+        elif (sound < self.__min or sound > self.__max):
             if self.__message:
                 rospy.loginfo(f"Finished calibration.\nMin: {self.__min}, Max: {self.__max}")
                 self.__message = False

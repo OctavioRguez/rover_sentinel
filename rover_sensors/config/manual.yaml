@@ -13,7 +13,7 @@ jetson:
 control:
   kpt:
     name: Proportional translational constant
-    value: 0.2
+    value: 0.1
   kpr:
     name: Proportional rotational constant
-    value: 0.2
+    value: 0.1

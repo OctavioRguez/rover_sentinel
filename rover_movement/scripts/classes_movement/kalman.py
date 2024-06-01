@@ -26,12 +26,12 @@ class Kalman_Filter(Rover):
         self.__Q = np.array([[1, 0, 0],
                             [0, 1, 0],
                             [0, 0, 1]])
-        self.__R = np.array([[0.01, 0, 0],
-                            [0, 0.01, 0],
-                            [0, 0, 0.01]])
+        self.__R = np.array([[0.3, 0, 0],
+                            [0, 0.3, 0],
+                            [0, 0, 0.3]])
 
         self.__odom = Odometry()
-        self.__odom.header.frame_id = "map"
+        self.__odom.header.frame_id = "odom"
         self.__odom.child_frame_id = "base_link"
 
         self.__pose = Pose()

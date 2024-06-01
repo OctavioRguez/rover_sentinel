@@ -1,13 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Person classificator -->
-    <include file="$(find rover_vision)/launch/rover_detection.launch"></include>
-
     <!-- Sensors data -->
     <include file="$(find rover_sensors)/launch/rover_arduino.launch"></include>
 
-    <!-- Movement Nodes -->
-    <node name="controller" pkg="rover_movement" type="controller.py" output="screen"/>
-    <node name="navigation" pkg="rover_movement" type="navigation.py" output="screen"/>
-    <node name="kalman_filter" pkg="rover_movement" type="kalman_filter.py" output="screen"/>
+    <!-- Person classificator -->
+    <include file="$(find rover_vision)/launch/rover_detection.launch"></include>
 </launch>
