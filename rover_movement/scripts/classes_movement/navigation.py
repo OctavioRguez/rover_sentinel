@@ -20,7 +20,7 @@ class Rover_Navigation(Rover):
         Rover.__init__(self)
 
         # Linear (v) and angular (w) velocities (m/s, rad/s)
-        self._v, self._w = 0.2, 0.2
+        self._v, self._w = 0.1, 0.15
         self.__enable = False
         self.__turning = True
         self.__turning_kalman = True
@@ -123,6 +123,7 @@ class Rover_Navigation(Rover):
             else:
                 # Rotate to the direction with the higher distance
                 w = -self._w if min_right >= min_left else self._w
+            rospy.sleep(0.2)
         return v, w, turning
 
     def __compute_lasers(self, x:float, y:float, theta:float) -> tuple:

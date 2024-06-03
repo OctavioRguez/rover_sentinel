@@ -15,7 +15,7 @@ class Camera:
         self.__img = CompressedImage()
         self.__img.format = "jpeg"
 
-        self.__cam_pub = rospy.Publisher("/image/compressed", CompressedImage, queue_size = 10)
+        self.__cam_pub = rospy.Publisher("/image/compressed", CompressedImage, queue_size = 1)
 
     def get_image(self) -> None:
         ret, frame = self.__cam.read() # Get actual frame

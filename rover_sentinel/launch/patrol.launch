@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- Sensors data -->
+    <!-- Publish map ready -->
+    <node pkg="rostopic" type="rostopic" name="ready_map" args='pub /ready/map std_msgs/Bool "data: true"'/>
+
+    <!-- Arduino sensors -->
     <include file="$(find rover_sensors)/launch/rover_arduino.launch"></include>
 
     <!-- Person classificator -->

@@ -25,7 +25,7 @@ class modelPredict:
         self.__compressedImg = CompressedImage()
         self.__compressedImg.format = "jpeg"
 
-        self.__detection_pub = rospy.Publisher("/prediction/compressed", CompressedImage, queue_size = 10)
+        self.__detection_pub = rospy.Publisher("/prediction/compressed", CompressedImage, queue_size = 1)
         self.__person_pub = rospy.Publisher("/detected/person", Bool, queue_size = 10)
         rospy.Subscriber("/image/compressed", CompressedImage, self.__image_callback)
         rospy.wait_for_message("/image/compressed", CompressedImage, timeout = 30)

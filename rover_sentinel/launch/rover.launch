@@ -6,8 +6,12 @@
     <!-- Odometry Raw -->
     <include file="$(find rover_movement)/launch/rover_odometry.launch"></include>
 
-    <!-- Sensors data -->
-    <include file="$(find rover_sensors)/launch/rover_manual.launch"></include> 
+    <!-- Joystick data -->
+    <include file="$(find rover_sensors)/launch/rover_manual.launch"></include>
+
+    <!-- SLAM -->
+    <node name="gmapping" pkg="rover_slam" type="gmapping.sh"/>
+    <include file="$(find rover_slam)/launch/rover_slam_odometry.launch"></include>
 
     <!-- Movement Nodes -->
     <node name="controller" pkg="rover_movement" type="controller.py" output="screen"/>

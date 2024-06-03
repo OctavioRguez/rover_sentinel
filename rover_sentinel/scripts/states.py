@@ -5,7 +5,6 @@ import rospy
 import numpy as np
 import pytz
 import datetime
-import subprocess, signal
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -31,6 +30,7 @@ class StateMachine:
         self.__active_investigation = False
         self.__person = False
         self.__manual_mode = False
+        self.__email_sended = False
 
         self.__path = Path()
         self.__path.header.frame_id = "odom"
@@ -45,10 +45,6 @@ class StateMachine:
         # Border markers for RVIZ
         self.__markers = MarkerArray()
         self.__types = ["Current", "Visited", "Unvisited"]
-
-        # Start SLAM
-        self.__process = subprocess.Popen(["roslaunch", "rover_sentinel", "exploration.launch"], 
-                                          stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 
         # Email parameters
         self.__send_to = ["A01639786@tec.mx"]
@@ -86,12 +82,10 @@ class StateMachine:
         self.__manual_mode = msg.data
 
     def __sound_callback(self, msg:Bool) -> None:
-        # self.__sound = msg.data
-        pass
+        self.__sound = msg.data
 
     def __person_callback(self, msg:Bool) -> None:
-        # self.__person = msg.data
-        pass
+        self.__person = msg.data
 
     def __ready_map_callback(self, msg:Bool) -> None:
         self.__map = msg.data
@@ -130,21 +124,34 @@ class StateMachine:
             else:
                 flag = True
             self.__nav_pub.publish(flag)
-            self.__check_time()
+            self.__check_time() if self.__state == "NAVIGATION" else None
 
         elif self.__state == "MANUAL":
             if not self.__manual_mode:
                 if self.__control_ready:
                     self.__approximate_new_quadrant()
                 else:
-                    self.__state = "CONTROL"
+                    path = self.__planner.calculate_dijkstra(self.__curr_quadrant, self.__quadrants.offset)
+                    self.__path.header.stamp = rospy.Time.now()
+                    self.__path.poses = [PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path]
+                    self.__path_pub.publish(self.__path)
+                    rospy.sleep(0.5)
                     self.__kalman_pub.publish("Control")
+                    self.__state = "CONTROL"
                     rospy.loginfo("State: CONTROL - Moving to a quadrant...")
-        
+
         elif self.__state == "ALERT":
+            if not self.__email_sended:
+                self.__stop_operation()
+                self.__send_email()
+                self.__email_sended = True
+            self.__buzzer_pub.publish(1)
+
+    def __stop_operation(self) -> None:
+        time = rospy.Time.now().to_sec()
+        while rospy.Time.now().to_sec() - time < 0.1:
             self.__cmd_vel.publish(Twist(linear=Point(x=0.0), angular=Point(z=0.0)))
-            # self.__buzzer_pub.publish(1)
-            print("Buzzer")
+            rospy.sleep(0.1)
 
     def __move_to_manual(self) -> None:
         self.__cmd_vel.publish(Twist(linear=Point(x=0.0), angular=Point(z=0.0)))
@@ -158,18 +165,17 @@ class StateMachine:
         self.__last_quadrant_time = rospy.Time.now().to_sec()
         self.__state = "NAVIGATION"
         rospy.loginfo("State: NAVIGATION - Navigating...")
-    
+
     def __move_to_alert(self) -> None:
         self.__kalman_pub.publish("")
         self.__state = "ALERT"
         rospy.loginfo("State: ALERT - Person detected")
-        self.__send_email()
 
     def __start_investigation(self) -> None:
         self.__active_investigation = True
         self.__buzzer_pub.publish(1)
         rospy.loginfo("Sound detected, investigating...")
-        self.__nav_time = 15
+        self.__nav_time = 8
         self.__visited_quadrants = []
         self.__planning()
 
@@ -183,6 +189,7 @@ class StateMachine:
         else:
             rospy.loginfo("Restarting navigation in the current quadrant...")
             self.__curr_quadrant = quad
+            self.__print_borders()
             self.__move_to_nav()
 
     def __select_quadrant(self) -> None:
@@ -209,7 +216,7 @@ class StateMachine:
                 self.__path.header.stamp = rospy.Time.now()
                 self.__path.poses = [PoseStamped(pose=Pose(position=Point(x=pos[0], y=pos[1]))) for pos in path]
                 self.__path_pub.publish(self.__path)
-                rospy.sleep(1)
+                rospy.sleep(0.5)
                 break
             rospy.loginfo("Unable to create a path to the current quadrant, selecting another quadrant...")
         self.__kalman_pub.publish("Control")
@@ -223,19 +230,9 @@ class StateMachine:
             rospy.loginfo("Time elapsed, selecting another quadrant...")
             self.__nav_pub.publish(False)
             self.__kalman_pub.publish("")
-            time = rospy.Time.now().to_sec()
-            while rospy.Time.now().to_sec() - time < 0.1:
-                self.__cmd_vel.publish(Twist(linear=Point(x=0.0), angular=Point(z=0.0)))
-                rospy.sleep(0.1)
+            self.__stop_operation()
             self.__visited_quadrants.append(self.__curr_quadrant)
             self.__planning()
-
-    def __manage_roslaunchs(self) -> None:
-        self.__process.send_signal(signal.SIGINT)
-        self.__process.wait()
-        self.__process = subprocess.Popen(["roslaunch", "rover_sentinel", "patrol.launch"], 
-                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-        rospy.wait_for_message("/prediction/compressed", CompressedImage, timeout = 30)
 
     def __initiate_operation(self) -> None:
         shape = Map_Sections().split(2, 2)
@@ -243,7 +240,8 @@ class StateMachine:
         rospy.loginfo("Map splited into quadrants, calculating PRM...")
         graph = PRM().calculate_prm()
         rospy.loginfo("PRM calculated, creating a path to a quadrant...")
-        self.__manage_roslaunchs()
+        rospy.loginfo("Waiting for prediction...")
+        rospy.wait_for_message("/prediction/compressed", CompressedImage, timeout = 360)
         self.__planner = Dijkstra_Path(graph, shape)
         self.__planning()
 
@@ -314,8 +312,6 @@ class StateMachine:
 
     def stop(self) -> None:
         self.__cmd_vel.publish(Twist(linear=Point(x=0.0), angular=Point(z=0.0)))
-        self.__process.send_signal(signal.SIGINT)
-        self.__process.wait()
         rospy.loginfo("Stoping the State Machine Node")
         rospy.signal_shutdown("Stoping the State Machine Node")
 

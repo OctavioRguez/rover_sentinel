@@ -26,9 +26,9 @@ class Kalman_Filter(Rover):
         self.__Q = np.array([[1, 0, 0],
                             [0, 1, 0],
                             [0, 0, 1]])
-        self.__R = np.array([[0.3, 0, 0],
-                            [0, 0.3, 0],
-                            [0, 0, 0.3]])
+        self.__R = np.array([[0.1, 0, 0],
+                            [0, 0.1, 0],
+                            [0, 0, 0.1]])
 
         self.__odom = Odometry()
         self.__odom.header.frame_id = "odom"
@@ -41,7 +41,7 @@ class Kalman_Filter(Rover):
         self.__nav_pub = rospy.Publisher("/kalman_predict/pose/navigation", Pose, queue_size = 1)
         self.__control_pub = rospy.Publisher("/kalman_predict/pose/controller", Pose, queue_size = 1)
         rospy.Subscriber("/filter_mode", String, self.__filter_mode_callback)
-        rospy.Subscriber("/odom/raw", Odometry, self.__odom_callback)
+        rospy.Subscriber("/odom/slam", Odometry, self.__odom_callback)
         rospy.Subscriber("/kalman_predict/vel", Twist, self.__vel_callback)
         rospy.Subscriber("/cmd_vel", Twist, self.__cmd_vel_callback)
 

@@ -17,7 +17,7 @@ from .rover import Rover
 class Controller(Rover):
     def __init__(self) -> None:
         Rover.__init__(self)
-        self.__vmax, self.__wmax = 0.15, 0.3
+        self.__vmax, self.__wmax = 0.1, 0.15
         self.__kpr = 2.0
 
         self.__enable = False
@@ -157,7 +157,7 @@ class Controller(Rover):
         return v, self.__wmax*np.tanh(w / self.__wmax), turning
 
     def __reactive_navegation(self, turning:bool) -> tuple:
-        min_forward = min(min(self.__forward), self.__dist)
+        min_forward = min(min(self.__forward), self.__dist, self.__ir_left, self.__ir_right)
         min_left = min(min(self.__left), self.__ir_left)
         min_right = min(min(self.__right), self.__ir_right)
         
